@@ -15,10 +15,24 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class FileUtils {
 
+    public static final String TYPE_VIDEO = "1";
+    public static final String TYPE_IMAGE = "2";
+    public static final String TYPE_GIF = "3";
+
+    public static final Map<String, Integer> TYPE_MAP = new HashMap<>();
+    static {
+        TYPE_MAP.put(TYPE_VIDEO, 1);
+        TYPE_MAP.put(TYPE_IMAGE, 0);
+        TYPE_MAP.put(TYPE_GIF, 0);
+    }
+
+    public final static int DEFAULT_DURATION  = 5; // 默认播放5S
     private String SDPATH;
 
     public FileUtils() {

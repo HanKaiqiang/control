@@ -1,5 +1,7 @@
 package com.touhuwai.hiadvbox;
 
+import java.util.UUID;
+
 public class HiAdvItem {
     //数据库专用
     //public String uniqueId;
@@ -22,6 +24,14 @@ public class HiAdvItem {
         //this.uniqueId = UUID.randomUUID().toString();
         this.resourceType = resourceType;
         this.resourceDuration = resourceDuration;
+        this.localResourceFilePath = localResourceFilePath;
+        //this.resourceUrl = resourceUrl;
+    }
+
+    public HiAdvItem(Integer resourceType, Integer resourceDuration, String localResourceFilePath) {
+        this.resourceId = UUID.randomUUID().toString();
+        this.resourceType = resourceType == null ? 0 : resourceType;
+        this.resourceDuration = resourceDuration == null ? 0 : resourceDuration;
         this.localResourceFilePath = localResourceFilePath;
         //this.resourceUrl = resourceUrl;
     }
