@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">control</string>
+    <string name="server_ip">server_ip</string>
+    <string name="username">username</string>
+    <string name="password">password</string>
+    <string name="connect">connect</string>
 </resources>
