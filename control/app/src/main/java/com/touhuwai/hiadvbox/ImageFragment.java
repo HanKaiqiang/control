@@ -14,7 +14,9 @@ import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import com.touhuwai.control.R;
 
@@ -81,14 +83,6 @@ public class ImageFragment extends Fragment {
         //ButterKnife.bind(this, view);
         text = view.findViewById(R.id.text);
         iv_pic = view.findViewById(R.id.iv_pic);
-//        if(mAdvItem.getLocalResourceFilePath()!=null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
-//            startTime = new Date();
-//            Glide.with(this).load(imageUrl).into(iv_pic);
-//            Log.i(TAG, "开始播放图片" + imageUrl);
-//            new Thread(new MyThread(mAdvItem.getResourceDuration())).start();
-//        }else{
-//            mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE,0, new Date(), new Date());
-//        }
         return view;
     }
 
@@ -129,11 +123,6 @@ public class ImageFragment extends Fragment {
                     countSec ++;
                     Thread.sleep(1000);//线程暂停10秒，单位毫秒
                 }
-                //String resourceId,
-                //                                     int resourceType,
-                //                                     int actualDuration,
-                //                                     Date startTime,
-                //                                     Date endTime
                 Log.i(TAG, "结束播放图片" + mAdvItem.getResourceUrl());
                 endTime = new Date();
                 mListener.onPlayAdvItemResult(

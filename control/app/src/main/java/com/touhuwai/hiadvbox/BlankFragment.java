@@ -28,7 +28,7 @@ public class BlankFragment extends Fragment {
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        LinearLayout linearLayout = getView().findViewById(R.id.ll_view);
+//        LinearLayout linearLayout = getView().findViewById(R.id.ll_view);
 
     }
 }

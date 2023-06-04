@@ -130,9 +130,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                 try {
                     int TOTALSIZE = mAdvItemsList.size();
                     if(TOTALSIZE==0){
-                        if(frag==null) {
-                            frag = BlankFragment.newInstance();
-                        }
+                        frag = BlankFragment.newInstance();
                         return frag;
                     }
                     int index = position % TOTALSIZE;    //index从0开始到size-1
@@ -219,12 +217,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         }
 
         mPosition++;
-        mActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mVp2.setCurrentItem(mPosition);
-            }
-        });
+        mActivity.runOnUiThread(() -> mVp2.setCurrentItem(mPosition));
 
     }
 }
