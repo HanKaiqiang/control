@@ -78,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_READ_PHONE_STATE = 1;
 
     private static int DELAY_TIME = 1000; // 每秒检测是否需要播垫播素材
+    private int mTimeRemaining;
     private Handler mTimerHandler = new Handler();
     private Runnable mTimerRunnable = new Runnable() {
         @Override
@@ -105,28 +106,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private int mTimeRemaining;
-
-
-//    private void init(){
-//        AndPermission.with(this)
-//                .runtime()
-//                .permission(Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE)
-//                .onGranted(permissions -> {
-//                    // Storage permission are allowed.
-//                    //grantOnTop();
-//                    startPlay();
-//                })
-//                .onDenied(permissions -> {
-//                    ActivityCompat.requestPermissions(this,
-//                            new String[]{
-//                                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
-//                                    Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_READ_PHONE_STATE);
-//                    // Storage permission are not allowed.
-//                })
-//                .start();
-//    }
-
     private void requestPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
@@ -150,9 +129,6 @@ public class MainActivity extends AppCompatActivity {
         db = dbHelper.getWritableDatabase();
         requestPermissions();
         showView();
-
-//        init();
-        //startPlay();
     }
 
     private void showView () {
@@ -168,9 +144,6 @@ public class MainActivity extends AppCompatActivity {
                         "Unable to connect to the internet";
             }
             deviceInfoTextView.setText(text);
-//            Handler handler = new Handler();
-//            // 更新 TextView 的位置
-//            handler.postDelayed(new MyRunnable(getResources().getDisplayMetrics(), deviceInfoTextView, handler), DELAY);
             mServerIpEditText = findViewById(R.id.server_ip);
             mUsernameEditText = findViewById(R.id.username);
             mPasswordEditText = findViewById(R.id.password);
@@ -202,34 +175,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         hi_adv_box = findViewById(R.id.hi_adv_box);
         hi_adv_box.init(this);
-    }
-
-
-    private void startPlay(){
-        hi_adv_box = findViewById(R.id.hi_adv_box);
-        hi_adv_box.init(this);
-
-        List<HiAdvItem> list = new ArrayList<>();
-        //请先把myres资源手动拷贝到/mnt/sdcard/advpub 目录下。真正运行时，应该是从网上下载并自动放于/mnt/sdcard/advpub目录的
-        String path = this.getExternalFilesDir("").getAbsolutePath();
-
-        list.add(new HiAdvItem(UUID.randomUUID().toString(), 0, 2,  path + "/123.jpg"));
-        list.add(new HiAdvItem(UUID.randomUUID().toString(), 1, 0, path + "/小河1620x1080.mp4"));
-        list.add(new HiAdvItem(UUID.randomUUID().toString(), 0, 3, path + "/we.mp4"));
-        list.add(new HiAdvItem(UUID.randomUUID().toString(), 1, 0, path + "/HKQ-119 2023-05-31 12-10-35.mp4"));
-        //hi_adv_box.setData(list);
-        //hi_adv_box.startWork();
-        hi_adv_box.restartWork(list);
-        hi_adv_box.setAdvEventListener(new IAdvPlayEventListener() {
-            @Override
-            public void onPlayAdvItemResult(boolean isSucceed, String resourceId, int resourceType, int actualDuration, Date startTime, Date endTime) {
-                Log.i(TAG, "外部外部 播放一条 item played. resourceType=" + resourceType
-                        + ", actualDuration=" + actualDuration
-                        + ", startTime=" + startTime
-                        + ", endTime=" + endTime
-                );
-            }
-        });
     }
 
     private boolean mqtt (String SERVER_URI, String USERNAME, String PASSWORD) {
