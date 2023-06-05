@@ -9,11 +9,11 @@ import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_UNOCCUPIED_SQL;
 import static com.touhuwai.control.utils.FileUtils.DEFAULT_DURATION;
 import static com.touhuwai.control.utils.FileUtils.TYPE_GIF;
 import static com.touhuwai.control.utils.FileUtils.TYPE_IMAGE;
 import static com.touhuwai.control.utils.FileUtils.TYPE_MAP;
-import static com.touhuwai.control.utils.MyRunnable.DELAY;
 
 import android.Manifest;
 import android.content.ContentValues;
@@ -41,7 +41,6 @@ import androidx.core.content.ContextCompat;
 import com.touhuwai.control.db.DbHelper;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
-import com.touhuwai.control.utils.MyRunnable;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
 import com.touhuwai.hiadvbox.IAdvPlayEventListener;
@@ -323,6 +322,7 @@ public class MainActivity extends AppCompatActivity {
 
     private List<HiAdvItem> messageToAdvance (JSONArray playList, boolean isDefaultPlay) throws Exception {
         List<HiAdvItem> dataList = new ArrayList<>();
+        List<Object> currentPlayList = new ArrayList<>();
         for (int i = 0; i < playList.length(); i++) {
             JSONObject item = playList.getJSONObject(i);
             String fileUrl = item.getString("url");
@@ -343,7 +343,12 @@ public class MainActivity extends AppCompatActivity {
             if (TYPE_GIF.equals(type)) {
                 filePath = fileUrl;
             } else {
-                filePath = queryFilePath(fileUrl, false);
+                Map<String, Object> fileInfo = queryFilePath(fileUrl, false);
+                filePath = fileInfo.get("filePath");
+                Object id = fileInfo.get("id");
+                if (id != null) {
+                    currentPlayList.add(id);
+                }
                 if (filePath instanceof Integer) {
                     type = TYPE_IMAGE;
                 }
@@ -351,6 +356,18 @@ public class MainActivity extends AppCompatActivity {
 
             // todo error文件
             dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, String.valueOf(filePath)));
+        }
+        if (!isDefaultPlay && !currentPlayList.isEmpty()) {
+            StringBuilder where = new StringBuilder(" and id in (");
+            for (int i = 0; i < currentPlayList.size(); i++) {
+                Object id = currentPlayList.get(i);
+                where.append(id);
+                if (i != currentPlayList.size() -1) {
+                    where.append(", ");
+                }
+            }
+            where.append(") ");
+            db.execSQL(UPDATE_FILE_UNOCCUPIED_SQL + where);
         }
         return dataList;
     }
@@ -371,7 +388,7 @@ public class MainActivity extends AppCompatActivity {
         ContentValues cValue = new ContentValues();
         cValue.put("url", fileUrl);
         try {
-            String path = FileUtils.downFile(fileUrl, defaultFileDir);
+            String path = FileUtils.downFile(fileUrl, defaultFileDir, db);
             cValue.put("path", path);
             cValue.put("type", type);
             cValue.put("duration", duration);
@@ -387,36 +404,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private Object queryFilePath (String imageUrl, boolean isForceDown) {
+    private Map<String, Object> queryFilePath (String imageUrl, boolean isForceDown) {
         int img = R.drawable.img;
+        Map<String, Object> fileInfo = new HashMap<>();
         Object filePath = img;
+        Object id = null;
         try {
             String sql = SELECT_FILE_TABLE_SQL + " and url = '" + imageUrl + "'";
             Cursor cursor = db.rawQuery(sql,null);
             if (cursor.getCount() != 0 && !isForceDown) { // 数据库中查询到数据, 使用缓存
                 Map<String, Object> result = _path(cursor);
-                Object id = result.get("id");
+                id = result.get("id");
                 filePath = result.get("filePath");
-                if (filePath instanceof Integer && ((Integer)filePath) == img) {
+                Object status = result.get("status");
+                if (status  == FILE_DOWN_STATUS_ERROR) {
                     db.execSQL(DELETE_FILE_TABLE_SQL + " and id = " + id);
-                    filePath = queryFilePath(imageUrl, true);
+                   return queryFilePath(imageUrl, true);
                 }
             } else {
-                FileUtils.downloadAndSaveFile(imageUrl, fileDir, db);
-                Cursor dbFiles = db.rawQuery(sql, null);
-                int count = dbFiles.getCount();
-                if (count != 0) {
-                    Map<String, Object> result = _path(dbFiles);
-                    filePath = result.get("filePath");
-                } else {
-                    dbFiles.close();
-                }
+                return FileUtils.downloadAndSaveFile(imageUrl, fileDir, db);
             }
         } catch (Exception e) {
             Log.e("MainActivity", e.getMessage(), e);
-//            throw new RuntimeException(e);
         }
-        return filePath;
+        fileInfo.put("filePath", filePath);
+        fileInfo.put("id", id);
+        return fileInfo;
     }
 
 
@@ -435,6 +448,7 @@ public class MainActivity extends AppCompatActivity {
         Map<String, Object> result = new HashMap<>();
         result.put("id", id);
         result.put("filePath", filePath);
+        result.put("status", status);
         return result;
     }
 

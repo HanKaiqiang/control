@@ -1,21 +1,30 @@
 package com.touhuwai.control.utils;
 
 import static android.os.Environment.MEDIA_MOUNTED;
-
-
-import static com.touhuwai.control.db.DbHelper.*;
+import static com.touhuwai.control.db.DbHelper.DELETE_FILE_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_ERROR;
+import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_SUCCESS;
+import static com.touhuwai.control.db.DbHelper.FILE_OCCUPY;
+import static com.touhuwai.control.db.DbHelper.FILE_TABLE;
+import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Environment;
+import android.os.StatFs;
 import android.util.Log;
+
+import com.touhuwai.control.FileCache;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -60,7 +69,7 @@ public class FileUtils {
     }
 
 
-    public static String downFile(String fileUrl, String fileDir) throws Exception {
+    public static String downFile(String fileUrl, String fileDir, SQLiteDatabase db) throws Exception {
         // 获取文件名
         String fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
         String filePath = fileDir + fileName;
@@ -76,14 +85,19 @@ public class FileUtils {
         out.close();
         in.close();
 
+        new Thread(new FileCache(db)).start();
         return filePath;
     }
 
-    public static void downloadAndSaveFile(String fileUrl, String fileDir, SQLiteDatabase db) {
+    public static Map<String, Object> downloadAndSaveFile(String fileUrl, String fileDir, SQLiteDatabase db) {
         ContentValues cValue = new ContentValues();
+        Map<String, Object> result = new HashMap<>();
         cValue.put("url", fileUrl);
+        cValue.put("occupy", FILE_OCCUPY);
+        String filePath = null;
         try {
-            String filePath = downFile(fileUrl, fileDir);
+            filePath = downFile(fileUrl, fileDir, db);
+            result.put("filePath", filePath);
             cValue.put("path", filePath);
             cValue.put("status", FILE_DOWN_STATUS_SUCCESS);
 //            cValue.put("size", totalSize);
@@ -91,8 +105,10 @@ public class FileUtils {
             cValue.put("status", FILE_DOWN_STATUS_ERROR);
             Log.e("FileUtils", e.getMessage(), e);
         } finally {
-            db.insert(FILE_TABLE, null, cValue);
             Log.e("FileUtils", fileUrl + "文件下载结束");
+            long id = db.insert(FILE_TABLE, null, cValue);
+            result.put("id", id);
+            return result;
         }
     }
 
@@ -126,6 +142,55 @@ public class FileUtils {
             } catch (Exception e) {
                 Log.e("FileUtils", "删除文件失败：" + e.getMessage(), e);
             }
+        }
+    }
+
+    public static void deleteFiles(SQLiteDatabase db) {
+        Cursor cursor = db.rawQuery(SELECT_FILE_TABLE_SQL,null);
+        int count = cursor.getCount();
+        if (count > 1) { // 删除现有垫播信息
+            cursor.moveToFirst();  //移动到首位
+            List<Integer> deletedIds = new ArrayList<>();
+            long bytesToDelete = Math.max(0, MIN_FREE_BYTES - bytesAvailable);
+            for (int i = 0; i < cursor.getCount(); i++) {
+                int occupy = cursor.getInt(4);
+                if (FILE_OCCUPY == occupy) {
+                    continue;
+                }
+                String path = cursor.getString(2);
+                File file = new File(path);
+                bytesToDelete -= file.length();
+                if (bytesToDelete < 0) {
+                    break;
+                }
+                FileUtils.deleteTempFile(file, 3);
+                deletedIds.add(cursor.getInt(0));
+                //移动到下一位
+                cursor.moveToNext();
+            }
+            if (!deletedIds.isEmpty()) {
+                StringBuilder where = new StringBuilder(" and id in (");
+                for (int i = 0; i < deletedIds.size(); i++) {
+                    Integer deletedId = deletedIds.get(i);
+                    where.append(deletedId);
+                    if (i != deletedIds.size() -1) {
+                        where.append(", ");
+                    }
+                }
+                where.append(") ");
+                db.execSQL(DELETE_FILE_TABLE_SQL + where);
+            }
+        }
+    }
+
+    private static StatFs statFs = new StatFs(Environment.getExternalStorageDirectory().getPath());
+    private static long bytesAvailable = (long)statFs.getBlockSize() * (long)statFs.getAvailableBlocks();
+    public static long MIN_FREE_BYTES =(long)(statFs.getTotalBytes() / (1.0/3.0));
+
+    public static void checkSdFree (SQLiteDatabase db) {
+        long availableSize = statFs.getAvailableBytes();
+        if (availableSize < MIN_FREE_BYTES) {
+            deleteFiles(db);
         }
     }
 

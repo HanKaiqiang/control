@@ -15,6 +15,8 @@ public class DbHelper extends SQLiteOpenHelper  {
 
     public static String SELECT_FILE_TABLE_SQL = "select * from " + FILE_TABLE + " where 1 = 1 ";
 
+    public static String UPDATE_FILE_UNOCCUPIED_SQL = "update " + FILE_TABLE + " set occupy = 0" + " where 1 = 1 ";
+
     public static String DELETE_FILE_TABLE_SQL = "delete from " + FILE_TABLE + " where 1 = 1 ";
 
     public static String SELECT_MQTT_TABLE_SQL = "select * from " + MQTT_TABLE + " where 1 = 1 ";
@@ -23,14 +25,18 @@ public class DbHelper extends SQLiteOpenHelper  {
 
     public static String DELETE_DEFAULT_TABLE_SQL = "delete from " + DEFAULT_TABLE + " where 1 = 1 ";
 
-    public static Integer FILE_DOWN_STATUS_SUCCESS = 0;
-    public static Integer FILE_DOWN_STATUS_ERROR = 1;
+    public static Integer FILE_DOWN_STATUS_SUCCESS = 1; // 成功
+    public static Integer FILE_DOWN_STATUS_ERROR = 0; // 失败
+
+    public static Integer FILE_OCCUPY = 1; // 占用
+    public static Integer FILE_UNOCCUPIED = 0; // 未占用
 
     public static final String CREATE_FILES_TABLE = "create table IF NOT EXISTS files ("
             + "id integer primary key autoincrement, "
             + "url text, "
             + "path text, "
-            + "status integer, "
+            + "status integer, " // 下载状态status 1成功  0失败
+            + "occupy integer, " // 是否为当前播放列表内容 0 不是， 1是
             + "size text)";
 
     public static final String CREATE_DEFAULT_TABLE = "create table IF NOT EXISTS default_play ("

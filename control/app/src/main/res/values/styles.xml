@@ -6,6 +6,16 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
     </style>
+    <style name="AppBaseTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- has incuded in parent style -->
+
+        <item name="android:windowNoTitle">true</item>
+
+        <!-- 窗口状态栏颜色可以设置为和背景色一致 -->
+        <item name="colorPrimaryDark">@color/black</item>
+        <!-- 窗口的背景，替代启动时候出现的白屏 -->
+        <item name="android:windowBackground">@drawable/bg_splash</item>
+    </style>
 
     <style name="MyEditText" parent="Theme.AppCompat.Light">
         <item name="colorControlNormal">@color/main_gray</item>
