@@ -1,21 +1,28 @@
 package com.touhuwai.control;
 
-import static com.touhuwai.control.db.DbHelper.*;
+import static com.touhuwai.control.db.DbHelper.DEFAULT_TABLE;
+import static com.touhuwai.control.db.DbHelper.DELETE_DEFAULT_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.DELETE_FILE_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_ERROR;
+import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_SUCCESS;
+import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
+import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
 import static com.touhuwai.control.utils.FileUtils.DEFAULT_DURATION;
 import static com.touhuwai.control.utils.FileUtils.TYPE_GIF;
 import static com.touhuwai.control.utils.FileUtils.TYPE_IMAGE;
 import static com.touhuwai.control.utils.FileUtils.TYPE_MAP;
 import static com.touhuwai.control.utils.MyRunnable.DELAY;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -27,22 +34,14 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import com.touhuwai.control.db.DbHelper;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
 import com.touhuwai.control.utils.MyRunnable;
-import com.yanzhenjie.permission.AndPermission;
-import com.yanzhenjie.permission.runtime.Permission;
-
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
 import com.touhuwai.hiadvbox.IAdvPlayEventListener;
@@ -57,6 +56,15 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -153,13 +161,17 @@ public class MainActivity extends AppCompatActivity {
             setContentView(R.layout.activity_login);
             // 获取 TextView 对象并初始化 Handler
             TextView deviceInfoTextView = findViewById(R.id.device_info_text_view);
-            deviceInfoTextView.setText("DeviceId：" + deviceId + "\n" +
+            String text = "DeviceId：" + deviceId + "\n" +
                     "DeviceIp：" + DeviceInfoUtil.getDeviceIpAddress(this.getApplicationContext()) + "\n" +
-                    "Status：" + "offLine"
-            );
-            Handler handler = new Handler();
-            // 更新 TextView 的位置
-            handler.postDelayed(new MyRunnable(getResources().getDisplayMetrics(), deviceInfoTextView, handler), DELAY);
+                    "Status：" + "offLine";
+            if (!networkIsConnect()) {
+                text = text + "\n" +
+                        "Unable to connect to the internet";
+            }
+            deviceInfoTextView.setText(text);
+//            Handler handler = new Handler();
+//            // 更新 TextView 的位置
+//            handler.postDelayed(new MyRunnable(getResources().getDisplayMetrics(), deviceInfoTextView, handler), DELAY);
             mServerIpEditText = findViewById(R.id.server_ip);
             mUsernameEditText = findViewById(R.id.username);
             mPasswordEditText = findViewById(R.id.password);
@@ -454,6 +466,15 @@ public class MainActivity extends AppCompatActivity {
         } catch (MqttException e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean networkIsConnect () {
+        // 获取 ConnectivityManager 对象
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        // 获取当前默认网络的信息，可能为空(null)
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        // 判断网络状态是否可用
+        return activeNetwork != null && activeNetwork.isConnected();
     }
 
 }

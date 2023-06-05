@@ -3,53 +3,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/container"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/img2">
 
 
     <TextView
         android:id="@+id/device_info_text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:background="#999999"
-        android:padding="4dp"
+        android:layout_marginTop="0dp"
+        android:padding="0dp"
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:textColor="#FFFFFF"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="MissingConstraints" />
-
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="88dp"
-        android:layout_height="77dp"
-        android:layout_marginStart="162dp"
-        android:layout_marginTop="50dp"
-        android:layout_marginEnd="162dp"
-        android:layout_marginBottom="15dp"
-        android:contentDescription="TODO"
-        android:src="@mipmap/logo"
-        app:layout_constraintBottom_toTopOf="@+id/server_ip"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.0"
-        tools:ignore="MissingConstraints" />
-
-    <EditText
-        android:id="@+id/username"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:autofillHints=""
-        android:hint="@string/username"
-        android:inputType="textEmailAddress"
-        android:selectAllOnFocus="true"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/server_ip" />
 
     <EditText
         android:id="@+id/server_ip"
@@ -58,12 +26,38 @@
         android:layout_marginTop="160dp"
         android:autofillHints=""
         android:hint="@string/server_ip"
-        android:inputType="textEmailAddress"
+        android:textColorHint="@color/main_gray"
+        android:inputType="text|textEmailAddress"
         android:selectAllOnFocus="true"
+        android:textColor="#FFFFFF"
+        android:textCursorDrawable="@drawable/edit_custom_style"
+        android:textSize="@dimen/permission_dp_25"
+        android:textStyle="bold"
+        android:theme="@style/MyEditText"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/username"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:autofillHints=""
+        android:hint="@string/username"
+        android:textColorHint="#9C9C9C"
+        android:inputType="textEmailAddress"
+        android:selectAllOnFocus="true"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:textSize="@dimen/permission_dp_25"
+        android:theme="@style/MyEditText"
+        android:textCursorDrawable="@drawable/edit_custom_style"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/server_ip" />
 
     <EditText
         android:id="@+id/password"
@@ -72,10 +66,16 @@
         android:layout_marginTop="20dp"
         android:autofillHints=""
         android:hint="@string/password"
+        android:textColorHint="#9C9C9C"
         android:imeActionLabel="@string/password"
         android:imeOptions="actionDone"
         android:inputType="textPassword"
         android:selectAllOnFocus="true"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:textSize="@dimen/permission_dp_25"
+        android:theme="@style/MyEditText"
+        android:textCursorDrawable="@drawable/edit_custom_style"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
@@ -86,6 +86,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/connect"
+        android:textStyle="bold"
+        android:background="@drawable/rounded_button"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.483"

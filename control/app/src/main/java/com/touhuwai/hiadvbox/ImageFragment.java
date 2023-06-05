@@ -13,12 +13,10 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
 import com.touhuwai.control.R;
+
+import java.util.Date;
+
 
 
 public class ImageFragment extends Fragment {
@@ -98,7 +96,10 @@ public class ImageFragment extends Fragment {
         String imageUrl = mAdvItem.getLocalResourceFilePath();
         if(mAdvItem.getLocalResourceFilePath()!=null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
             startTime = new Date();
-            Glide.with(this).load(mAdvItem.getLocalResourceFilePath()).into(iv_pic);
+            Glide.with(this)
+                    .load(mAdvItem.getLocalResourceFilePath())
+                    .error(R.drawable.img)
+                    .into(iv_pic);
             Log.i(TAG, "开始播放图片" + imageUrl);
             new Thread(new MyThread(mAdvItem.getResourceDuration())).start();
         }else{

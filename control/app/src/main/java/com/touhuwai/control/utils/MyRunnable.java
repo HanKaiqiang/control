@@ -15,7 +15,7 @@ public class MyRunnable implements Runnable {
         this.handler = handler;
     }
 
-    public static final int DELAY = 10;
+    public static final int DELAY = 50;
 
     float x = 0, y = 0, dx = 5, dy = 5;
     int screenWidth, screenHeight, width, height;
