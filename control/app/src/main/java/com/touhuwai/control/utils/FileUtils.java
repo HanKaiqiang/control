@@ -158,7 +158,13 @@ public class FileUtils {
                     continue;
                 }
                 String path = cursor.getString(2);
+                if (path == null || "".equals(path)) {
+                    return;
+                }
                 File file = new File(path);
+                if (!file.exists()) {
+                    return;
+                }
                 bytesToDelete -= file.length();
                 if (bytesToDelete < 0) {
                     break;

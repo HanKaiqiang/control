@@ -99,6 +99,7 @@ public class ImageFragment extends Fragment {
             Glide.with(this)
                     .load(mAdvItem.getLocalResourceFilePath())
                     .error(R.drawable.img)
+                    .transform(new GlideBitmapTransformation())
                     .into(iv_pic);
             Log.i(TAG, "开始播放图片" + imageUrl);
             new Thread(new MyThread(mAdvItem.getResourceDuration())).start();
