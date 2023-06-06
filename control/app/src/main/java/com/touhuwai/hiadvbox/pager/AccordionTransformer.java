@@ -39,6 +39,8 @@ public class AccordionTransformer extends ABaseTransformer {
 			float alphaFactor = Math.max(MIN_ALPHA, 1 - Math.abs(position));
 			//透明度改变Log
 			view.setAlpha(alphaFactor);
+			// 控制展示层级
+			view.setTranslationZ(-position);
 		} else { // (1,+Infinity]
 			// This page is way off-screen to the right.    出了右边屏幕
 			view.setAlpha(0);
