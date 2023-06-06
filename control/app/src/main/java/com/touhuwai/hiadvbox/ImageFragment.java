@@ -44,7 +44,7 @@ public class ImageFragment extends Fragment {
 
     Date startTime;
     Date endTime;
-
+    protected boolean isStop;
 //    public static synchronized Fragment newInstance(int i) {
 //        index = i;
 //        return new ImageFragment();
@@ -91,10 +91,11 @@ public class ImageFragment extends Fragment {
 
     @Override
     public void onResume() {
+//        super.onStart();
         super.onResume();
 
         String imageUrl = mAdvItem.getLocalResourceFilePath();
-        if(mAdvItem.getLocalResourceFilePath()!=null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
+        if (mAdvItem.getLocalResourceFilePath() != null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
             startTime = new Date();
             Glide.with(this)
                     .load(mAdvItem.getLocalResourceFilePath())
@@ -103,8 +104,8 @@ public class ImageFragment extends Fragment {
                     .into(iv_pic);
             Log.i(TAG, "开始播放图片" + imageUrl);
             new Thread(new MyThread(mAdvItem.getResourceDuration())).start();
-        }else{
-            mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE,0, new Date(), new Date());
+        } else {
+            mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE, 0, new Date(), new Date());
         }
     }
 
@@ -122,19 +123,25 @@ public class ImageFragment extends Fragment {
             try {
                 //int countSec = 0;
                 for(int i=0; i<tDuration; i++) {
+                    if (isStop) {
+                        Log.e(TAG, "节目切换 停止当前");
+                        return;
+                    }
                     countSec ++;
                     Thread.sleep(1000);//线程暂停10秒，单位毫秒
                 }
                 Log.i(TAG, "结束播放图片" + mAdvItem.getResourceUrl());
                 endTime = new Date();
-                mListener.onPlayAdvItemResult(
-                        true,
-                        mAdvItem.getResourceId(),
-                        AdvConstants.RES_TYPE_IMAGE,
-                        countSec,
-                        startTime,
-                        endTime
-                        );
+                if (mListener != null) {
+                    mListener.onPlayAdvItemResult(
+                            true,
+                            mAdvItem.getResourceId(),
+                            AdvConstants.RES_TYPE_IMAGE,
+                            countSec,
+                            startTime,
+                            endTime
+                    );
+                }
                 mListener = null;
             } catch (InterruptedException e) {
                 e.printStackTrace();
