@@ -9,6 +9,7 @@ import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_OCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_UNOCCUPIED_SQL;
 import static com.touhuwai.control.utils.FileUtils.DEFAULT_DURATION;
 import static com.touhuwai.control.utils.FileUtils.TYPE_GIF;
@@ -64,6 +65,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -76,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText mServerIpEditText, mUsernameEditText, mPasswordEditText;
     private Button mConnectButton;
     private static final int REQUEST_READ_PHONE_STATE = 1;
+    private static final int DEFAULT_RETRY_COUNT = 3;
 
     private static int DELAY_TIME = 1000; // 每秒检测是否需要播垫播素材
     private int mTimeRemaining;
@@ -90,10 +93,11 @@ public class MainActivity extends AppCompatActivity {
                 if (count != 0) {
                     cursor.moveToFirst();  //移动到首位
                     for (int i = 0; i < cursor.getCount(); i++) {
+                        String url = cursor.getString(1);
                         String filePath = cursor.getString(2);
                         String type = cursor.getString(3);
                         Integer duration = cursor.getInt(4);
-                        dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, String.valueOf(filePath)));
+                        dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, url, String.valueOf(filePath)));
                         //移动到下一位
                         cursor.moveToNext();
                     }
@@ -174,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
     private void connectSuccess () {
         setContentView(R.layout.activity_main);
         hi_adv_box = findViewById(R.id.hi_adv_box);
-        hi_adv_box.init(this);
+        hi_adv_box.init(this, db);
     }
 
     private boolean mqtt (String SERVER_URI, String USERNAME, String PASSWORD) {
@@ -288,7 +292,7 @@ public class MainActivity extends AppCompatActivity {
             if (TYPE_GIF.equals(type)) {
                 filePath = fileUrl;
             } else {
-                Map<String, Object> fileInfo = queryFilePath(fileUrl, false);
+                Map<String, Object> fileInfo = queryFilePath(fileUrl, false, DEFAULT_RETRY_COUNT);
                 filePath = fileInfo.get("filePath");
                 Object id = fileInfo.get("id");
                 if (id != null) {
@@ -300,10 +304,10 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // todo error文件
-            dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, String.valueOf(filePath)));
+            dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, fileUrl, String.valueOf(filePath)));
         }
         if (!isDefaultPlay && !currentPlayList.isEmpty()) {
-            StringBuilder where = new StringBuilder(" and id in (");
+            StringBuilder where = new StringBuilder(" in (");
             for (int i = 0; i < currentPlayList.size(); i++) {
                 Object id = currentPlayList.get(i);
                 where.append(id);
@@ -312,7 +316,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             where.append(") ");
-            db.execSQL(UPDATE_FILE_UNOCCUPIED_SQL + where);
+            db.execSQL(UPDATE_FILE_UNOCCUPIED_SQL + "and id not" + where);
+            db.execSQL(UPDATE_FILE_OCCUPIED_SQL + "and id " + where);
         }
         return dataList;
     }
@@ -324,7 +329,7 @@ public class MainActivity extends AppCompatActivity {
             cursor.moveToFirst();  //移动到首位
             for (int i = 0; i < cursor.getCount(); i++) {
                 String path = cursor.getString(2);
-                FileUtils.deleteTempFile(new File(path), 3);
+                FileUtils.deleteTempFile(new File(path), DEFAULT_RETRY_COUNT);
                 //移动到下一位
                 cursor.moveToNext();
             }
@@ -349,7 +354,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private Map<String, Object> queryFilePath (String imageUrl, boolean isForceDown) {
+    private Map<String, Object> queryFilePath (String imageUrl, boolean isForceDown, int retryCount) {
         int img = R.drawable.img;
         Map<String, Object> fileInfo = new HashMap<>();
         Object filePath = img;
@@ -358,13 +363,13 @@ public class MainActivity extends AppCompatActivity {
             String sql = SELECT_FILE_TABLE_SQL + " and url = '" + imageUrl + "'";
             Cursor cursor = db.rawQuery(sql,null);
             if (cursor.getCount() != 0 && !isForceDown) { // 数据库中查询到数据, 使用缓存
-                Map<String, Object> result = _path(cursor);
+                Map<String, Object> result = _path(cursor, retryCount);
                 id = result.get("id");
                 filePath = result.get("filePath");
                 Object status = result.get("status");
                 if (status  == FILE_DOWN_STATUS_ERROR) {
                     db.execSQL(DELETE_FILE_TABLE_SQL + " and id = " + id);
-                   return queryFilePath(imageUrl, true);
+                   return queryFilePath(imageUrl, true, retryCount);
                 }
             } else {
                 return FileUtils.downloadAndSaveFile(imageUrl, fileDir, db);
@@ -378,14 +383,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private Map<String, Object> _path (Cursor dbFiles) {
+    private Map<String, Object> _path (Cursor dbFiles, int retryCount) {
         dbFiles.moveToFirst();
         Integer status = dbFiles.getInt(3);
+        String url = dbFiles.getString(1);
         Object filePath = R.drawable.img;
         if (status == FILE_DOWN_STATUS_SUCCESS) {
             filePath = dbFiles.getString(2);
         } else {
             // 重试
+            if (retryCount > 0) {
+                retryCount--;
+                int finalRetryCount = retryCount;
+                CompletableFuture.runAsync(() -> {
+                    queryFilePath(url, true, finalRetryCount);
+                });
+            }
             filePath = R.drawable.img;
         }
         Integer id = dbFiles.getInt(0);

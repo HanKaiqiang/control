@@ -1,6 +1,7 @@
 package com.touhuwai.hiadvbox;
 
 import android.Manifest;
+import android.app.Dialog;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
@@ -172,38 +173,32 @@ public class VideoFragment extends Fragment {
             return;
         }
         try {
+            vv1.setOnErrorListener((mp, what, extra) -> {
+                Log.w(TAG, "play video error");
+                endTime = new Date();
+                mListener.onPlayAdvItemResult(false,
+                        mAdvItem.getResourceId(),
+                        AdvConstants.RES_TYPE_VIDEO,
+                        (int) AdvDateUtil.diffSecond(startTime, endTime),
+                        startTime,
+                        endTime
+                );
+                return true;
+            });
             vv1.setVideoPath(mAdvItem.getLocalResourceFilePath());
             vv1.seekTo(0);
             vv1.start();
             startTime = new Date();
-            vv1.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                @Override
-                public void onCompletion(MediaPlayer mp) {
-                    Log.i(TAG, "play video end");
-                    endTime = new Date();
-                    mListener.onPlayAdvItemResult(true,
-                            mAdvItem.getResourceId(),
-                            AdvConstants.RES_TYPE_VIDEO,
-                            (int) AdvDateUtil.diffSecond(startTime, endTime),
-                            startTime,
-                            endTime
-                    );
-                }
-            });
-            vv1.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-                @Override
-                public boolean onError(MediaPlayer mp, int what, int extra) {
-                    Log.w(TAG, "play video error");
-                    endTime = new Date();
-                    mListener.onPlayAdvItemResult(false,
-                            mAdvItem.getResourceId(),
-                            AdvConstants.RES_TYPE_VIDEO,
-                            (int) AdvDateUtil.diffSecond(startTime, endTime),
-                            startTime,
-                            endTime
-                    );
-                    return false;
-                }
+            vv1.setOnCompletionListener(mp -> {
+                Log.i(TAG, "play video end");
+                endTime = new Date();
+                mListener.onPlayAdvItemResult(true,
+                        mAdvItem.getResourceId(),
+                        AdvConstants.RES_TYPE_VIDEO,
+                        (int) AdvDateUtil.diffSecond(startTime, endTime),
+                        startTime,
+                        endTime
+                );
             });
         }catch (Exception e){
             e.printStackTrace();

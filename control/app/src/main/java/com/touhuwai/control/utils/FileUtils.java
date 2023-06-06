@@ -17,6 +17,8 @@ import android.os.StatFs;
 import android.util.Log;
 
 import com.touhuwai.control.FileCache;
+import com.touhuwai.control.db.DbHelper;
+import com.touhuwai.control.entry.FileDto;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -106,7 +108,14 @@ public class FileUtils {
             Log.e("FileUtils", e.getMessage(), e);
         } finally {
             Log.e("FileUtils", fileUrl + "文件下载结束");
-            long id = db.insert(FILE_TABLE, null, cValue);
+            FileDto fileDto = DbHelper.queryByUrl(db, fileUrl);
+            long id = 0;
+            if (fileDto != null) {
+                id = fileDto.id;
+                db.update(FILE_TABLE, cValue, "id=?", new String[]{String.valueOf(id)});
+            } else {
+                id = db.insert(FILE_TABLE, null, cValue);
+            }
             result.put("id", id);
             return result;
         }
@@ -146,18 +155,17 @@ public class FileUtils {
     }
 
     public static void deleteFiles(SQLiteDatabase db) {
-        Cursor cursor = db.rawQuery(SELECT_FILE_TABLE_SQL,null);
-        int count = cursor.getCount();
-        if (count > 1) { // 删除现有垫播信息
-            cursor.moveToFirst();  //移动到首位
+        List<FileDto> fileDtoList = DbHelper.queryFileDtoList(db);
+        if (fileDtoList.size() > 0) {
             List<Integer> deletedIds = new ArrayList<>();
             long bytesToDelete = Math.max(0, MIN_FREE_BYTES - bytesAvailable);
-            for (int i = 0; i < cursor.getCount(); i++) {
-                int occupy = cursor.getInt(4);
+            for (int i = 0; i < fileDtoList.size(); i++) {
+                FileDto fileDto = fileDtoList.get(i);
+                int occupy = fileDto.occupy;
                 if (FILE_OCCUPY == occupy) {
                     continue;
                 }
-                String path = cursor.getString(2);
+                String path = fileDto.path;
                 if (path == null || "".equals(path)) {
                     return;
                 }
@@ -170,9 +178,7 @@ public class FileUtils {
                     break;
                 }
                 FileUtils.deleteTempFile(file, 3);
-                deletedIds.add(cursor.getInt(0));
-                //移动到下一位
-                cursor.moveToNext();
+                deletedIds.add(fileDto.id);
             }
             if (!deletedIds.isEmpty()) {
                 StringBuilder where = new StringBuilder(" and id in (");

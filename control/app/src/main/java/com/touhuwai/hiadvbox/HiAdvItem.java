@@ -28,12 +28,12 @@ public class HiAdvItem {
         //this.resourceUrl = resourceUrl;
     }
 
-    public HiAdvItem(Integer resourceType, Integer resourceDuration, String localResourceFilePath) {
+    public HiAdvItem(Integer resourceType, Integer resourceDuration, String resourceUrl, String localResourceFilePath) {
         this.resourceId = UUID.randomUUID().toString();
         this.resourceType = resourceType == null ? 0 : resourceType;
         this.resourceDuration = resourceDuration == null ? 0 : resourceDuration;
         this.localResourceFilePath = localResourceFilePath;
-        //this.resourceUrl = resourceUrl;
+        this.resourceUrl = resourceUrl;
     }
 
     public String getResourceId() {

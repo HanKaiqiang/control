@@ -29,12 +29,12 @@ public class AdvWorker {
         switch (eventType){
             case EVENT_IMAGE_PLAY_SUCCESS:
                 mPosition ++;
-                mVp2.setCurrentItem(mPosition);
+                mVp2.setCurrentItem(mPosition, false);
 
                 break;
             case EVENT_VIDEO_PLAY_SUCCESS:
                 mPosition ++;
-                mVp2.setCurrentItem(mPosition);
+                mVp2.setCurrentItem(mPosition, false);
 
                 break;
             default:

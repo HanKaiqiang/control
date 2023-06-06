@@ -1,8 +1,12 @@
 package com.touhuwai.hiadvbox;
 
+import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_SUCCESS;
+
 import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TableLayout;
 import android.widget.TextView;
@@ -16,7 +20,11 @@ import androidx.viewpager2.widget.ViewPager2;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
+import com.touhuwai.control.R;
+import com.touhuwai.control.db.DbHelper;
+import com.touhuwai.control.entry.FileDto;
 import com.touhuwai.hiadvbox.pager.AccordionTransformer;
 
 /**
@@ -28,6 +36,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
     private AppCompatActivity mActivity;
     private AdvWorker mWorker;
 
+    private SQLiteDatabase db;
     private List<HiAdvItem> mAdvItemsList = new ArrayList<>();
 
     //外部监听器
@@ -53,22 +62,6 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         //initEvent();
     }
 
-
-    /*
-            <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tab_layout"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:background="#fff"
-            app:tabIndicatorColor="@color/colorPrimary"
-            app:tabSelectedTextColor="@color/colorPrimary" />
-
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/vp2"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-     */
 
     private void setData(List<HiAdvItem> itemsList){
         mAdvItemsList = itemsList;
@@ -100,8 +93,9 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         mExternalEventListener = listener;
     }
 
-    public void init(AppCompatActivity activity){
+    public void init(AppCompatActivity activity, SQLiteDatabase db){
         mActivity = activity;
+        this.db = db;
 
     }
 
@@ -119,7 +113,14 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         }
         //mWorker = new AdvWorker(mVp2);
         mVp2.setAdapter(null);
-        mVp2.setPageTransformer(new AccordionTransformer());
+        mVp2.setPageTransformer(new ViewPager2.PageTransformer() {
+            @Override
+            public void transformPage(@NonNull View page, float position) {
+//                page.setScaleX(0.75f);
+//                page.setScaleY(0.75f);
+//                page.setAlpha(0.5f);
+            }
+        });
         mVp2.setAdapter(new FragmentStateAdapter(mActivity) {
             @NonNull
             @Override
@@ -141,10 +142,15 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                         //String ruleDetailId = ruleDetail.getRuleDetailId();
                         int duration = item.getResourceDuration()==0? 5: item.getResourceDuration();
 
-                        String localResPath = AdvConstants.FILE_PATH + AdvMyStringUtil.getFileNameFromUrl(item.getResourceUrl());
-                        //如果localResourceFilePath是空才赋值
-                        if(item.getLocalResourceFilePath()==null || item.getLocalResourceFilePath().isEmpty()){
-                            item.setLocalResourceFilePath(localResPath);
+//                        String localResPath = AdvConstants.FILE_PATH + AdvMyStringUtil.getFileNameFromUrl(item.getResourceUrl());
+                        String localResourceFilePath = item.getLocalResourceFilePath();
+                        //如果localResourceFilePath是空时查询数据库中是否异步重新下载成功
+                        if(localResourceFilePath == null || localResourceFilePath.equals(String.valueOf(R.drawable.img))){
+                            String resourceUrl = item.getResourceUrl();
+                            FileDto fileDto = DbHelper.queryByUrl(db, resourceUrl);
+                            if (Objects.equals(fileDto.status, FILE_DOWN_STATUS_SUCCESS)) {
+                                item.setLocalResourceFilePath(fileDto.path);
+                            }
                         }
                         switch (resType){
                             case 0://图片
@@ -194,6 +200,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
     }
 
     public void stopWork(){
+        mPosition = 0;
         mWorker = null;
         mVp2.setAdapter(null);
     }
@@ -217,7 +224,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         }
 
         mPosition++;
-        mActivity.runOnUiThread(() -> mVp2.setCurrentItem(mPosition));
+        mActivity.runOnUiThread(() -> mVp2.setCurrentItem(mPosition, false));
 
     }
 }

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">control</string>
+    <string name="app_name">Control</string>
     <string name="server_ip">server_ip</string>
     <string name="username">username</string>
     <string name="password">password</string>
