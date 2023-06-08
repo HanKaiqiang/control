@@ -1,33 +1,23 @@
 package com.touhuwai.hiadvbox;
 
 import android.Manifest;
-import android.app.Dialog;
-import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.VideoView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-//import com.histonepos.hiadvpub.R;
-//import com.histonepos.hiadvpub.bean.BaseEventBean;
-//import com.histonepos.hiadvpub.bean.EventActions;
-//import com.histonepos.hiadvpub.util.DateUtil;
-//import com.yanzhenjie.permission.AndPermission;
-//
-//import org.greenrobot.eventbus.EventBus;
-
+import com.touhuwai.control.R;
 import com.yanzhenjie.permission.AndPermission;
 
 import java.io.File;
 import java.util.Date;
-
-import com.touhuwai.control.R;
 
 //import butterknife.BindView;
 //import butterknife.ButterKnife;
@@ -59,21 +49,24 @@ public class VideoFragment extends Fragment {
     IAdvPlayEventListener mListener;
     Date startTime;
     Date endTime;
+    public int progress = 0;
 
+    private ProgressBar progressBar;
     //static WeakReference<AdvWorker> mWorkerRef;
 
     public VideoFragment(){
 
     }
 
-    public VideoFragment(HiAdvItem item, IAdvPlayEventListener listener){
+    public VideoFragment(HiAdvItem item, IAdvPlayEventListener listener, int progress){
         mAdvItem = item;
         mListener = listener;
+        progress = progress;
     }
 
-    public static Fragment newInstance(HiAdvItem item, IAdvPlayEventListener listener) {
+    public static Fragment newInstance(HiAdvItem item, IAdvPlayEventListener listener, int progress) {
         //mWorkerRef = new WeakReference<AdvWorker>(worker);
-        return new VideoFragment(item,listener);
+        return new VideoFragment(item,listener, progress);
     }
 
     /**
@@ -242,7 +235,8 @@ public class VideoFragment extends Fragment {
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_video, container, false);
         //ButterKnife.bind(this, view);
-
+        progressBar = view.findViewById(R.id.vio_progress);
+        progressBar.setProgress(progress);
         Log.i(TAG, "onCreateView()");
         vv1 = view.findViewById(R.id.vv1);
         //vv1.setVideoPath(mAdvItem.getLocalResourceFilePath());

@@ -79,7 +79,7 @@ public class FileUtils {
         Log.e("FileUtils", fileUrl + "文件下载开始");
         BufferedInputStream in = new BufferedInputStream(url.openStream());
         FileOutputStream out = new FileOutputStream(filePath);
-        byte[] outputByte = new byte[1024];
+        byte[] outputByte = new byte[5* 1024 * 1024];
         int r = -1;
         while ((r = in.read(outputByte)) != -1) {
             out.write(outputByte, 0, r);

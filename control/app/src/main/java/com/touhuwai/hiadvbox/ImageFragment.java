@@ -6,7 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.TextView;
+import android.widget.ProgressBar;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -26,7 +26,7 @@ public class ImageFragment extends Fragment {
 //    @BindView(R.id.net_rv)
 //    RecyclerView recyclerView;
     //@BindView(R.id.text)
-    TextView text;
+    private ProgressBar progressBar;
 
     //@BindView(R.id.iv_pic)
     ImageView iv_pic;
@@ -46,21 +46,24 @@ public class ImageFragment extends Fragment {
     Date endTime;
     protected boolean isStop;
 
+    public int progress = 0;
+
     public static synchronized Fragment newInstance(HiAdvItem advItem,
-                                                    IAdvPlayEventListener listener) {
+                                                    IAdvPlayEventListener listener, int progress) {
         //mWorkerRef = new WeakReference<>(worker);
         //mDuration = duration;
-        return new ImageFragment(advItem, listener);
+        return new ImageFragment(advItem, listener, progress);
     }
 
     public ImageFragment() {
-        this.text = text;
+//        this.progressBar = progressBar;
     }
 
     public ImageFragment(HiAdvItem advItem,
-                         IAdvPlayEventListener listener) {
+                         IAdvPlayEventListener listener, int progress) {
         mAdvItem = advItem;
         mListener = listener;
+        this.progress = progress;
     }
 
     @Nullable
@@ -70,7 +73,8 @@ public class ImageFragment extends Fragment {
         Log.i(TAG, "onCreateView, imageUrl=" + mAdvItem.getLocalResourceFilePath());
         View view = inflater.inflate(R.layout.fragment_image, container, false);
         //ButterKnife.bind(this, view);
-        text = view.findViewById(R.id.text);
+        progressBar = view.findViewById(R.id.img_progress);
+        progressBar.setProgress(progress);
         iv_pic = view.findViewById(R.id.iv_pic);
         return view;
     }

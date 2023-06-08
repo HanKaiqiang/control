@@ -50,6 +50,8 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
 
     private int mPosition = 0;
 
+    public int progress = 0;
+
     public HiAdvBox(Context context) {
         super(context);
         Log.i(TAG, "in HiAdvBox(Context context)...");
@@ -146,10 +148,6 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                         Log.i(TAG, "creating item=" + item);
                         if (item != null) {
                             int resType = item.getResourceType();
-                            //String ruleDetailId = ruleDetail.getRuleDetailId();
-                            int duration = item.getResourceDuration()==0? 5: item.getResourceDuration();
-
-//                        String localResPath = AdvConstants.FILE_PATH + AdvMyStringUtil.getFileNameFromUrl(item.getResourceUrl());
                             String localResourceFilePath = item.getLocalResourceFilePath();
                             //如果localResourceFilePath是空时查询数据库中是否异步重新下载成功
                             if(localResourceFilePath == null || localResourceFilePath.equals(String.valueOf(R.drawable.img))){
@@ -162,11 +160,11 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                             switch (resType) {
                                 case 0://图片
                                     Log.i(TAG, "creating an image frag");
-                                    frag = ImageFragment.newInstance(item, HiAdvBox.this);
+                                    frag = ImageFragment.newInstance(item, HiAdvBox.this, progress);
                                     break;
                                 case 1://视频
                                     Log.i(TAG, "creating a video frag");
-                                    frag = VideoFragment.newInstance(item, HiAdvBox.this);
+                                    frag = VideoFragment.newInstance(item, HiAdvBox.this, progress);
                                     break;
                                 default:
                                     Log.w(TAG, "unexpected resType!");
@@ -199,6 +197,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
             };
         }
         mVp2.setAdapter(adapter);
+        mActivity.runOnUiThread(() -> mVp2.setCurrentItem(mPosition, false));
     }
 
     private void pauseWork(){

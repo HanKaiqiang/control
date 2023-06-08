@@ -32,6 +32,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,7 +45,6 @@ import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
-import com.touhuwai.hiadvbox.IAdvPlayEventListener;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
@@ -60,11 +60,9 @@ import org.json.JSONObject;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class MainActivity extends AppCompatActivity {
@@ -82,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static int DELAY_TIME = 1000; // 每秒检测是否需要播垫播素材
     private int mTimeRemaining;
+    private ProgressBar progressBar;
     private Handler mTimerHandler = new Handler();
     private Runnable mTimerRunnable = new Runnable() {
         @Override
@@ -135,6 +134,8 @@ public class MainActivity extends AppCompatActivity {
         showView();
     }
 
+    private int progress = 0;
+
     private void showView () {
         if (!checkMqttServer()) {
             setContentView(R.layout.activity_login);
@@ -177,9 +178,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void connectSuccess () {
         setContentView(R.layout.activity_main);
+        progressBar = (ProgressBar) findViewById(R.id.progress);
+        progressBar.setProgress(progress);
         hi_adv_box = findViewById(R.id.hi_adv_box);
         hi_adv_box.init(this, db);
     }
+
+    private long lastMessageTime;
 
     private boolean mqtt (String SERVER_URI, String USERNAME, String PASSWORD) {
         try {
@@ -199,13 +204,15 @@ public class MainActivity extends AppCompatActivity {
                         if ("".equals(payload)) {
 //                            dataList.add(new Advance(R.drawable.img, 0));
                         } else {
+                            long currentTimeMillis = System.currentTimeMillis();
+                            lastMessageTime = currentTimeMillis;
                             JSONObject jsonObject = new JSONObject(payload);
                             JSONArray playList = jsonObject.getJSONArray("playList");
                             if (topic.startsWith(TOPIC_DEFAULT)) {
                                 // 垫播列表，收到消息后先下载至本地，后续由监听器切换
-                                messageToAdvance(playList, true);
+                                messageToAdvance(playList, true, currentTimeMillis);
                             } else {
-                                dataList = messageToAdvance(playList, false);
+                                dataList = messageToAdvance(playList, false, currentTimeMillis);
                                 if (!jsonObject.isNull("totalDuration")) {
                                     int totalDuration = jsonObject.getInt("totalDuration");
                                     mTimeRemaining = totalDuration;
@@ -213,7 +220,10 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             }
                             List<HiAdvItem> finalDataList = dataList;
-                            MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
+                            if (currentTimeMillis == lastMessageTime) {
+                                hi_adv_box.progress = progress;
+                                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
+                            }
                         }
                     } catch (Exception e) {
                         Log.e("MainActivity", e.getMessage(), e);
@@ -269,10 +279,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private List<HiAdvItem> messageToAdvance (JSONArray playList, boolean isDefaultPlay) throws Exception {
+    private List<HiAdvItem> messageToAdvance (JSONArray playList, boolean isDefaultPlay, long currentTimeMillis) throws Exception {
         List<HiAdvItem> dataList = new ArrayList<>();
         List<Object> currentPlayList = new ArrayList<>();
         for (int i = 0; i < playList.length(); i++) {
+            Double v = (i+ 1) * 1.0 / playList.length() * 100;
+            progress = v.intValue();
+            progressBar.setProgress(progress);
+            hi_adv_box.progress = progress;
+            if (currentTimeMillis < lastMessageTime && !isDefaultPlay) {
+                // 接收到新消息，前置消息不再下载
+                return dataList;
+            }
             JSONObject item = playList.getJSONObject(i);
             String fileUrl = item.getString("url");
             String type = item.getString("type");

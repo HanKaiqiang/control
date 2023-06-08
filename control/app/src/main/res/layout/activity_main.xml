@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:background="@drawable/img2"
     android:orientation="horizontal"
     tools:context=".MainActivity">
 
+    <ProgressBar
+        android:id="@+id/progress"
+        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/progress_bar"
+        android:indeterminateOnly="false"
+        android:progressDrawable="@drawable/progress_bar"
+        tools:ignore="MissingConstraints" />
 
     <com.touhuwai.hiadvbox.HiAdvBox
         android:id="@+id/hi_adv_box"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+    </com.touhuwai.hiadvbox.HiAdvBox>
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
