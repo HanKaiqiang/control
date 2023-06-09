@@ -192,6 +192,12 @@ public class MainActivity extends AppCompatActivity {
             mqttClient.setCallback(new MqttCallbackExtended() {
                 @Override
                 public void connectComplete(boolean reconnect, String serverURI) {
+                    try {
+                        mqttClient.subscribe(TOPIC + deviceId, 2).waitForCompletion();
+                        mqttClient.subscribe(TOPIC_DEFAULT + deviceId, 2).waitForCompletion();
+                    } catch (MqttException e) {
+                        Log.e("MainActivity", e.getMessage(), e);
+                    }
                 }
                 @Override
                 public void connectionLost(Throwable cause) {
@@ -239,8 +245,6 @@ public class MainActivity extends AppCompatActivity {
             options.setPassword(PASSWORD.toCharArray());
             options.setAutomaticReconnect(true);
             mqttClient.connect(options, null, null).waitForCompletion();
-            mqttClient.subscribe(TOPIC + deviceId, 0).waitForCompletion();
-            mqttClient.subscribe(TOPIC_DEFAULT + deviceId, 0).waitForCompletion();
             return true;
         } catch (MqttException e) {
             Log.e("MainActivity", e.getMessage(), e);
