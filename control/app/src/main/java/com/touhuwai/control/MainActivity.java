@@ -227,6 +227,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                             List<HiAdvItem> finalDataList = dataList;
                             if (currentTimeMillis == lastMessageTime) {
+                                progressBar.setVisibility(View.INVISIBLE);
                                 hi_adv_box.progress = progress;
                                 MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
                             }
