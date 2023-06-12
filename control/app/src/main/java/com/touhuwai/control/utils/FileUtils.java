@@ -6,11 +6,9 @@ import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_ERROR;
 import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_SUCCESS;
 import static com.touhuwai.control.db.DbHelper.FILE_OCCUPY;
 import static com.touhuwai.control.db.DbHelper.FILE_TABLE;
-import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 
 import android.content.ContentValues;
 import android.content.Context;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Environment;
 import android.os.StatFs;
@@ -28,7 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 
 public class FileUtils {
 
@@ -70,23 +68,26 @@ public class FileUtils {
         return directoryPath;
     }
 
-
     public static String downFile(String fileUrl, String fileDir, SQLiteDatabase db) throws Exception {
         // 获取文件名
         String fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
         String filePath = fileDir + fileName;
+        filePath = downFileWithPath(fileUrl, filePath, db);
+        return filePath;
+    }
+
+    public static String downFileWithPath(String fileUrl, String filePath, SQLiteDatabase db) throws Exception {
         URL url = new URL(fileUrl);
         Log.e("FileUtils", fileUrl + "文件下载开始");
         BufferedInputStream in = new BufferedInputStream(url.openStream());
         FileOutputStream out = new FileOutputStream(filePath);
-        byte[] outputByte = new byte[5* 1024 * 1024];
+        byte[] outputByte = new byte[3 * 1024 * 1024];
         int r = -1;
         while ((r = in.read(outputByte)) != -1) {
             out.write(outputByte, 0, r);
         }
         out.close();
         in.close();
-
         new Thread(new FileCache(db)).start();
         return filePath;
     }
@@ -132,7 +133,7 @@ public class FileUtils {
                         Log.d("FileUtils", "删除文件【" + tempFile + "】失败！");
                         if (retryCount > 0) {
                             Integer nextCount = retryCount - 1;
-                            CompletableFuture.runAsync(() -> {
+                            Executors.newSingleThreadExecutor().execute(() -> {
                                 try {
                                     Thread.sleep(5000L * retryCount);
                                 } catch (InterruptedException e) {

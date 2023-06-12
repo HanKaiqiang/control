@@ -5,10 +5,12 @@ import static com.touhuwai.control.db.DbHelper.DELETE_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.DELETE_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_ERROR;
 import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_SUCCESS;
+import static com.touhuwai.control.db.DbHelper.FILE_OCCUPY;
 import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_OCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_UNOCCUPIED_SQL;
 import static com.touhuwai.control.utils.FileUtils.DEFAULT_DURATION;
@@ -23,6 +25,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
@@ -43,6 +46,8 @@ import androidx.core.content.ContextCompat;
 import com.touhuwai.control.db.DbHelper;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
+import com.touhuwai.control.utils.LogToFile;
+import com.touhuwai.control.utils.RandomNumberUtil;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
 
@@ -63,7 +68,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -81,13 +86,16 @@ public class MainActivity extends AppCompatActivity {
     private static int DELAY_TIME = 1000; // 每秒检测是否需要播垫播素材
     private int mTimeRemaining;
     private ProgressBar progressBar;
+    private boolean isPlayDefault = true;
+    private int qos = 0;
+
     private Handler mTimerHandler = new Handler();
     private Runnable mTimerRunnable = new Runnable() {
         @Override
         public void run() {
             if (mTimeRemaining == 0) {
                 List<HiAdvItem> dataList = new ArrayList<>();
-                Cursor cursor = db.rawQuery(SELECT_DEFAULT_TABLE_SQL, null);
+                Cursor cursor = db.rawQuery(SELECT_DEFAULT_TABLE_SQL + " and occupy = 1 ", null);
                 int count = cursor.getCount();
                 if (count != 0) {
                     cursor.moveToFirst();  //移动到首位
@@ -101,6 +109,7 @@ public class MainActivity extends AppCompatActivity {
                         cursor.moveToNext();
                     }
                 }
+                isPlayDefault = true;
                 MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
             } else {
                 mTimeRemaining --;
@@ -122,6 +131,8 @@ public class MainActivity extends AppCompatActivity {
         fileDir = FileUtils.getFilePath(this.getApplicationContext(), "");
         defaultFileDir = FileUtils.getFilePath(this.getApplicationContext(), "default/");
         deviceId = DeviceInfoUtil.getDeviceId(this.getApplicationContext());
+        LogToFile.createLogFile(this.getApplicationContext());
+        LogToFile.writeLogToFile();
     }
 
     @Override
@@ -131,6 +142,7 @@ public class MainActivity extends AppCompatActivity {
         DbHelper dbHelper = new DbHelper(getApplicationContext());
         db = dbHelper.getWritableDatabase();
         requestPermissions();
+        setContentView(R.layout.activity_loading);
         showView();
     }
 
@@ -139,14 +151,13 @@ public class MainActivity extends AppCompatActivity {
     private void showView () {
         if (!checkMqttServer()) {
             setContentView(R.layout.activity_login);
-            // 获取 TextView 对象并初始化 Handler
             TextView deviceInfoTextView = findViewById(R.id.device_info_text_view);
             String text = "DeviceId：" + deviceId + "\n" +
                     "DeviceIp：" + DeviceInfoUtil.getDeviceIpAddress(this.getApplicationContext()) + "\n" +
                     "Status：" + "offLine";
             if (!networkIsConnect()) {
                 text = text + "\n" +
-                        "Unable to connect to the internet";
+                        "Unable to connect";
             }
             deviceInfoTextView.setText(text);
             mServerIpEditText = findViewById(R.id.server_ip);
@@ -155,20 +166,28 @@ public class MainActivity extends AppCompatActivity {
             mConnectButton = findViewById(R.id.connect);
             mConnectButton.setOnClickListener(view -> {
                 String serverIp = mServerIpEditText.getText().toString().trim();
-                serverIp = "tcp://" + serverIp + ":1883";
                 String username = mUsernameEditText.getText().toString().trim();
                 String password = mPasswordEditText.getText().toString().trim();
+                if (serverIp.length() == 0 || username.length() == 0 || password.length() == 0) {
+                    Toast.makeText(MainActivity.this, "error, serverIp/username/password cannot be empty", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                if (serverIp.contains(":")) {
+                    serverIp = "tcp://" + serverIp;
+                } else {
+                    serverIp = "tcp://" + serverIp + ":1883";
+                }
                 boolean mqttConnect = mqtt(serverIp, username, password);
-                if(mqttConnect){
+                if (mqttConnect) {
                     ContentValues cValue = new ContentValues();
                     cValue.put("server_ip", serverIp);
                     cValue.put("username", username);
                     cValue.put("password", password);
                     db.insert(MQTT_TABLE, null, cValue);
-                    Toast.makeText(MainActivity.this, "Connect Success", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Connect Success", Toast.LENGTH_LONG).show();
                     connectSuccess();
-                }else{
-                    Toast.makeText(MainActivity.this, "Connection failed, serverIp/username/password error", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this, "Connection failed, serverIp/username/password error", Toast.LENGTH_LONG).show();
                 }
             });
         } else {
@@ -178,13 +197,21 @@ public class MainActivity extends AppCompatActivity {
 
     private void connectSuccess () {
         setContentView(R.layout.activity_main);
-        progressBar = (ProgressBar) findViewById(R.id.progress);
+        progressBar = findViewById(R.id.progress);
         progressBar.setProgress(progress);
         hi_adv_box = findViewById(R.id.hi_adv_box);
         hi_adv_box.init(this, db);
     }
 
     private long lastMessageTime;
+    private static MqttConnectOptions options = new MqttConnectOptions();
+    static {
+        options.setAutomaticReconnect(true);
+        // 设置超时时间 单位为秒
+        options.setConnectionTimeout(10);
+        // 设置会话心跳时间 单位为秒 服务器会每隔1.5*20秒的时间向客户端发送个消息判断客户端是否在线，但这个方法并没有重连的机制
+        options.setKeepAliveInterval(20);
+    }
 
     private boolean mqtt (String SERVER_URI, String USERNAME, String PASSWORD) {
         try {
@@ -193,14 +220,16 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void connectComplete(boolean reconnect, String serverURI) {
                     try {
-                        mqttClient.subscribe(TOPIC + deviceId, 2).waitForCompletion();
-                        mqttClient.subscribe(TOPIC_DEFAULT + deviceId, 2).waitForCompletion();
+                        String randomString = RandomNumberUtil.getRandomString(10);
+                        mqttClient.subscribe(TOPIC + randomString + deviceId, qos).waitForCompletion();
+                        mqttClient.subscribe(TOPIC_DEFAULT + randomString + deviceId, qos).waitForCompletion();
                     } catch (MqttException e) {
                         Log.e("MainActivity", e.getMessage(), e);
                     }
                 }
                 @Override
                 public void connectionLost(Throwable cause) {
+                    Toast.makeText(getApplicationContext(), cause.getMessage() + "连接失败！！！", Toast.LENGTH_LONG).show();
                 }
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
@@ -214,9 +243,14 @@ public class MainActivity extends AppCompatActivity {
                             lastMessageTime = currentTimeMillis;
                             JSONObject jsonObject = new JSONObject(payload);
                             JSONArray playList = jsonObject.getJSONArray("playList");
-                            if (topic.startsWith(TOPIC_DEFAULT)) {
+                            boolean type = jsonObject.isNull("type");
+                            if (topic.startsWith(TOPIC_DEFAULT) || (!type && "default".equals(jsonObject.getString("type")))) {
                                 // 垫播列表，收到消息后先下载至本地，后续由监听器切换
-                                messageToAdvance(playList, true, currentTimeMillis);
+                                List<HiAdvItem> hiAdvItems = messageToAdvance(playList, true, currentTimeMillis);
+                                if (isPlayDefault) {
+                                    MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(hiAdvItems));
+                                }
+                                return;
                             } else {
                                 dataList = messageToAdvance(playList, false, currentTimeMillis);
                                 if (!jsonObject.isNull("totalDuration")) {
@@ -229,6 +263,7 @@ public class MainActivity extends AppCompatActivity {
                             if (currentTimeMillis == lastMessageTime) {
                                 progressBar.setVisibility(View.INVISIBLE);
                                 hi_adv_box.progress = progress;
+                                isPlayDefault = false;
                                 MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
                             }
                         }
@@ -241,11 +276,11 @@ public class MainActivity extends AppCompatActivity {
                 public void deliveryComplete(IMqttDeliveryToken token) {
                 }
             });
-            MqttConnectOptions options = new MqttConnectOptions();
             options.setUserName(USERNAME);
             options.setPassword(PASSWORD.toCharArray());
-            options.setAutomaticReconnect(true);
+            options.setWill("/touhuwai/offline", deviceId.getBytes(StandardCharsets.UTF_8), qos, true);
             mqttClient.connect(options, null, null).waitForCompletion();
+            mqttConnectHandler.postDelayed(mqttConnectRunnable, 10000); // 10秒监测一次是否断连
             return true;
         } catch (MqttException e) {
             Log.e("MainActivity", e.getMessage(), e);
@@ -258,7 +293,7 @@ public class MainActivity extends AppCompatActivity {
             MqttMessage message = new MqttMessage(payload);
             mqttClient.publish(topic, message).waitForCompletion();
         } catch (MqttException e) {
-            e.printStackTrace();
+            Log.e(TAG, e.getMessage(), e);
         }
     }
 
@@ -283,10 +318,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
     private List<HiAdvItem> messageToAdvance (JSONArray playList, boolean isDefaultPlay, long currentTimeMillis) throws Exception {
         List<HiAdvItem> dataList = new ArrayList<>();
         List<Object> currentPlayList = new ArrayList<>();
+        List<HiAdvItem> defaultList = new ArrayList<>();
         for (int i = 0; i < playList.length(); i++) {
             Double v = (i+ 1) * 1.0 / playList.length() * 100;
             progress = v.intValue();
@@ -308,7 +343,8 @@ public class MainActivity extends AppCompatActivity {
                 duration = item.getInt("duration");
             }
             if (isDefaultPlay) {
-                downDefaultPlay(fileUrl, type, duration, i == 0);
+                HiAdvItem hiAdvItem = downDefaultPlay(fileUrl, type, duration, i == 0);
+                defaultList.add(hiAdvItem);
                 continue;
             }
             Object filePath;
@@ -342,17 +378,26 @@ public class MainActivity extends AppCompatActivity {
             db.execSQL(UPDATE_FILE_UNOCCUPIED_SQL + "and id not" + where);
             db.execSQL(UPDATE_FILE_OCCUPIED_SQL + "and id " + where);
         }
+        if (isDefaultPlay) {
+         return defaultList;
+        }
         return dataList;
     }
 
-    private void downDefaultPlay (String fileUrl, String type, Integer duration, boolean isDelete) {
+    private HiAdvItem downDefaultPlay (String fileUrl, String type, Integer duration, boolean isDelete) {
         Cursor cursor = db.rawQuery(SELECT_DEFAULT_TABLE_SQL,null);
         int count = cursor.getCount();
         if (count != 0 && isDelete) { // 删除现有垫播信息
             cursor.moveToFirst();  //移动到首位
             for (int i = 0; i < cursor.getCount(); i++) {
                 String path = cursor.getString(2);
-                FileUtils.deleteTempFile(new File(path), DEFAULT_RETRY_COUNT);
+                int occupy = cursor.getInt(6);
+                int id = cursor.getInt(0);
+                if (occupy != FILE_OCCUPY) {
+                    FileUtils.deleteTempFile(new File(path), DEFAULT_RETRY_COUNT);
+                } else {
+                    db.execSQL(UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL + " and id = " + id); // 更新为未占用
+                }
                 //移动到下一位
                 cursor.moveToNext();
             }
@@ -360,25 +405,41 @@ public class MainActivity extends AppCompatActivity {
         }
         ContentValues cValue = new ContentValues();
         cValue.put("url", fileUrl);
+        String path = null;
         try {
-            String path = FileUtils.downFile(fileUrl, defaultFileDir, db);
+            String fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
+            String filePath = defaultFileDir + fileName;
+            if (!new File(filePath).exists()) {
+                path = FileUtils.downFile(fileUrl, defaultFileDir, db);
+            } else {
+                path = filePath;
+            }
             cValue.put("path", path);
             cValue.put("type", type);
             cValue.put("duration", duration);
+            cValue.put("occupy", FILE_OCCUPY);
             cValue.put("status", FILE_DOWN_STATUS_SUCCESS);
         } catch (Exception e) {
             cValue.put("status", FILE_DOWN_STATUS_ERROR);
             Log.e("MainActivity", e.getMessage(), e);
         } finally {
-            db.insert(DEFAULT_TABLE, null, cValue);
+            String sql = SELECT_DEFAULT_TABLE_SQL + " and url = '" + fileUrl + "'";
+            Cursor queryFromDb = db.rawQuery(sql,null);
+            if (queryFromDb.getCount() > 0) {
+                queryFromDb.moveToFirst();
+                db.update(DEFAULT_TABLE, cValue, "id=?", new String[]{String.valueOf(queryFromDb.getInt(0))});
+            } else {
+                db.insert(DEFAULT_TABLE, null, cValue);
+            }
             Log.e("FileUtils", fileUrl + "文件下载结束");
+            return new HiAdvItem(TYPE_MAP.get(type), duration, fileUrl, String.valueOf(path));
         }
 
     }
 
 
     private Map<String, Object> queryFilePath (String imageUrl, boolean isForceDown, int retryCount) {
-        int img = R.drawable.img;
+        Integer img = null;
         Map<String, Object> fileInfo = new HashMap<>();
         Object filePath = img;
         Object id = null;
@@ -410,7 +471,7 @@ public class MainActivity extends AppCompatActivity {
         dbFiles.moveToFirst();
         Integer status = dbFiles.getInt(3);
         String url = dbFiles.getString(1);
-        Object filePath = R.drawable.img;
+        Object filePath = null;
         if (status == FILE_DOWN_STATUS_SUCCESS) {
             filePath = dbFiles.getString(2);
         } else {
@@ -418,11 +479,9 @@ public class MainActivity extends AppCompatActivity {
             if (retryCount > 0) {
                 retryCount--;
                 int finalRetryCount = retryCount;
-                CompletableFuture.runAsync(() -> {
-                    queryFilePath(url, true, finalRetryCount);
-                });
+                Executors.newSingleThreadExecutor().execute(() -> queryFilePath(url, true, finalRetryCount));
             }
-            filePath = R.drawable.img;
+            filePath = null;
         }
         Integer id = dbFiles.getInt(0);
         dbFiles.close();
@@ -438,9 +497,6 @@ public class MainActivity extends AppCompatActivity {
         // 隐藏状态栏、标题栏
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-        // 横屏
-//        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
         // 设置全屏模式
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -459,7 +515,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             mqttClient.disconnect();
         } catch (MqttException e) {
-            e.printStackTrace();
+           Log.e(TAG, e.getMessage(), e);
         }
     }
 
@@ -472,4 +528,21 @@ public class MainActivity extends AppCompatActivity {
         return activeNetwork != null && activeNetwork.isConnected();
     }
 
+    private Handler mqttConnectHandler = new Handler();
+    private Runnable mqttConnectRunnable = new Runnable() {
+        @Override
+        public void run() {
+            boolean connected = mqttClient.isConnected();
+            Log.d(TAG, "监测是否断连， 当前isConnected：" + connected);
+            if (connected) {
+                mqttConnectHandler.postDelayed(this, 10000); // 10秒监测一次是否断连
+            } else {
+                try {
+                    mqttClient.connect(options, null, null).waitForCompletion();
+                } catch (MqttException e) {
+                    Log.e(TAG, e.getMessage(), e);
+                }
+            }
+        }
+    };
 }

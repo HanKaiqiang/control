@@ -21,25 +21,11 @@ import java.util.Date;
 
 public class ImageFragment extends Fragment {
     private static final String TAG = ImageFragment.class.getSimpleName();
-
-    //private static int index;
-//    @BindView(R.id.net_rv)
-//    RecyclerView recyclerView;
-    //@BindView(R.id.text)
     private ProgressBar progressBar;
-
-    //@BindView(R.id.iv_pic)
     ImageView iv_pic;
-
-    //String mImageUrl = "";
-
-    //WeakReference<AdvWorker> mWorkerRef;
-    //int mDuration = 0;
 
     IAdvPlayEventListener mListener;
 
-//    String mResourceId = "";
-//    int mResourceType = 0;
     HiAdvItem mAdvItem;
 
     Date startTime;
@@ -50,13 +36,7 @@ public class ImageFragment extends Fragment {
 
     public static synchronized Fragment newInstance(HiAdvItem advItem,
                                                     IAdvPlayEventListener listener, int progress) {
-        //mWorkerRef = new WeakReference<>(worker);
-        //mDuration = duration;
         return new ImageFragment(advItem, listener, progress);
-    }
-
-    public ImageFragment() {
-//        this.progressBar = progressBar;
     }
 
     public ImageFragment(HiAdvItem advItem,
@@ -72,7 +52,6 @@ public class ImageFragment extends Fragment {
 
         Log.i(TAG, "onCreateView, imageUrl=" + mAdvItem.getLocalResourceFilePath());
         View view = inflater.inflate(R.layout.fragment_image, container, false);
-        //ButterKnife.bind(this, view);
         progressBar = view.findViewById(R.id.img_progress);
         progressBar.setProgress(progress);
         iv_pic = view.findViewById(R.id.iv_pic);
@@ -87,7 +66,6 @@ public class ImageFragment extends Fragment {
             startTime = new Date();
             Glide.with(this)
                     .load(mAdvItem.getLocalResourceFilePath())
-                    .error(R.drawable.img)
                     .transform(new GlideBitmapTransformation())
                     .into(iv_pic);
             Log.i(TAG, "开始播放图片" + imageUrl);
@@ -138,7 +116,7 @@ public class ImageFragment extends Fragment {
                             endTime
                     );
                 }
-                mListener = null;
+//                mListener = null;
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 endTime = new Date();

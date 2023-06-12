@@ -35,7 +35,9 @@ public class DbHelper extends SQLiteOpenHelper  {
 
     public static String SELECT_DEFAULT_TABLE_SQL = "select * from " + DEFAULT_TABLE + " where 1 = 1 ";
 
-    public static String DELETE_DEFAULT_TABLE_SQL = "delete from " + DEFAULT_TABLE + " where 1 = 1 ";
+    public static String DELETE_DEFAULT_TABLE_SQL = "delete from " + DEFAULT_TABLE + " where 1 = 1 and occupy = 0 ";
+
+    public static String UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL = "update " + DEFAULT_TABLE + " set occupy = 0" + " where 1 = 1 ";
 
     public static Integer FILE_DOWN_STATUS_SUCCESS = 1; // 成功
     public static Integer FILE_DOWN_STATUS_ERROR = 0; // 失败
@@ -58,6 +60,7 @@ public class DbHelper extends SQLiteOpenHelper  {
             + "type text, "
             + "duration integer, "
             + "status integer, "
+            + "occupy integer, "
             + "size text)";
 
     public static final String CREATE_MQTT_TABLE = "create table IF NOT EXISTS mqtt ("

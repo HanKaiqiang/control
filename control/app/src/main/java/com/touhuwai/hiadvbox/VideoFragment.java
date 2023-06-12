@@ -19,8 +19,6 @@ import com.yanzhenjie.permission.AndPermission;
 import java.io.File;
 import java.util.Date;
 
-//import butterknife.BindView;
-//import butterknife.ButterKnife;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -31,7 +29,6 @@ public class VideoFragment extends Fragment {
     private static final String TAG = VideoFragment.class.getSimpleName();
 
     // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
 
@@ -39,12 +36,9 @@ public class VideoFragment extends Fragment {
     private String mParam1;
     private String mParam2;
 
-    //@BindView(R.id.vv1)
     VideoView vv1;
 
-//    @BindView(R.id.playerView)
-//    PlayerView playerView;
-    //private String mFilename;
+
     HiAdvItem mAdvItem;
     IAdvPlayEventListener mListener;
     Date startTime;
@@ -52,7 +46,6 @@ public class VideoFragment extends Fragment {
     public int progress = 0;
 
     private ProgressBar progressBar;
-    //static WeakReference<AdvWorker> mWorkerRef;
 
     public VideoFragment(){
 
@@ -65,7 +58,6 @@ public class VideoFragment extends Fragment {
     }
 
     public static Fragment newInstance(HiAdvItem item, IAdvPlayEventListener listener, int progress) {
-        //mWorkerRef = new WeakReference<AdvWorker>(worker);
         return new VideoFragment(item,listener, progress);
     }
 
@@ -100,15 +92,12 @@ public class VideoFragment extends Fragment {
 
         if(AndPermission.hasPermissions(this, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)){
             //执行业务
-            //Toast.makeText(getActivity(), "有文件读写权限", Toast.LENGTH_SHORT).show();
             Log.i(TAG, "有文件读写权限");
         }else {
             //申请权限
-            //Toast.makeText(getActivity(), "无文件读写权限!!!", Toast.LENGTH_SHORT).show();
             Log.w(TAG, "无文件读写权限");
         }
 
-        //EventBus.getDefault().register(this);
     }
 
     @Override
@@ -120,21 +109,16 @@ public class VideoFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        //Log.i(TAG, "onDestroyView()");
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        //Log.i(TAG, "onDestroy()");
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        //Log.i(TAG, "onStart()");
-
-
     }
 
     @Override
@@ -178,7 +162,8 @@ public class VideoFragment extends Fragment {
                 );
                 return true;
             });
-            vv1.setVideoPath(mAdvItem.getLocalResourceFilePath());
+            String localResourceFilePath = mAdvItem.getLocalResourceFilePath();
+            vv1.setVideoPath(localResourceFilePath);
             vv1.seekTo(0);
             vv1.start();
             startTime = new Date();
@@ -194,53 +179,18 @@ public class VideoFragment extends Fragment {
                 );
             });
         }catch (Exception e){
-            e.printStackTrace();
+            Log.e("VideoFragment", e.getMessage(), e);
         }
-
-//        Bundle bundleParams = new Bundle();
-//        String startTimeStr = DateUtil.getStandardDateTimeString(new Date());
-//        vv1.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-//            @Override
-//            public void onCompletion(MediaPlayer mp) {
-//                //post event to switch next
-//                Log.i(TAG, "play a video end, mFilename=" + mFilename);
-//                String endTimeStr = DateUtil.getStandardDateTimeString(new Date());
-//                long playtime = DateUtil.diffSecond(endTimeStr, startTimeStr);
-//                bundleParams.putString("type", "1");    //"1": video
-//                bundleParams.putString("startTimeStr", startTimeStr);
-//                bundleParams.putString("playtime", String.valueOf(playtime));
-//                bundleParams.putString("endTimeStr", endTimeStr);
-//                bundleParams.putString("isFullPlay", "1");
-//                EventBus.getDefault().post(new BaseEventBean(EventActions.ADV_FRONT_VIEWPAGER_NEXTPAGE, bundleParams));
-//            }
-//        });
-//        vv1.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-//            @Override
-//            public boolean onError(MediaPlayer mp, int what, int extra) {
-//                String endTimeStr = DateUtil.getStandardDateTimeString(new Date());
-//                long playtime = DateUtil.diffSecond(endTimeStr, startTimeStr);
-//                bundleParams.putString("type", "1");    //"1": video
-//                bundleParams.putString("startTimeStr", startTimeStr);
-//                bundleParams.putString("playtime", String.valueOf(playtime));
-//                bundleParams.putString("endTimeStr", endTimeStr);
-//                bundleParams.putString("isFullPlay", "0");
-//                EventBus.getDefault().post(new BaseEventBean(EventActions.ADV_FRONT_VIEWPAGER_NEXTPAGE, bundleParams));
-//                return false;
-//            }
-//        });
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_video, container, false);
-        //ButterKnife.bind(this, view);
         progressBar = view.findViewById(R.id.vio_progress);
         progressBar.setProgress(progress);
         Log.i(TAG, "onCreateView()");
         vv1 = view.findViewById(R.id.vv1);
-        //vv1.setVideoPath(mAdvItem.getLocalResourceFilePath());
-        // Inflate the layout for this fragment
         return view;
     }
 

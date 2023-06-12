@@ -1,0 +1,37 @@
+<RelativeLayout  xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/img2">
+
+    <TextView
+        android:id="@+id/text_center"
+        android:layout_width="158dp"
+        android:layout_height="158dp"
+        android:layout_centerInParent="true"/>
+
+    <TextView
+        android:id="@+id/connecting_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/text_center"
+        android:layout_centerInParent="true"
+        android:layout_marginBottom="27dp"
+        android:text="connecting to server       "
+        android:textColor="#FFFFFF"
+        android:textSize="50sp" />
+
+    <com.wang.avi.AVLoadingIndicatorView
+        android:id="@+id/avi"
+        style="@style/AVLoadingIndicatorView.Small"
+        android:layout_width="59dp"
+        android:layout_height="35dp"
+        android:layout_above="@+id/text_center"
+        android:layout_marginStart="-81dp"
+        android:layout_marginBottom="29dp"
+        android:layout_toEndOf="@+id/connecting_text_view"
+        android:visibility="visible"
+        app:indicatorName="BallPulseIndicator" />
+
+</RelativeLayout>
