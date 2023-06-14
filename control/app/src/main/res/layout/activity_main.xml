@@ -19,10 +19,25 @@
         android:progressDrawable="@drawable/progress_bar"
         tools:ignore="MissingConstraints" />
 
+
+    <com.touhuwai.hiadvbox.Control
+        android:id="@+id/control"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+    </com.touhuwai.hiadvbox.Control>
+
     <com.touhuwai.hiadvbox.HiAdvBox
         android:id="@+id/hi_adv_box"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
     </com.touhuwai.hiadvbox.HiAdvBox>
+
+    <com.touhuwai.hiadvbox.AdvanceView
+        android:id="@+id/advance_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+    </com.touhuwai.hiadvbox.AdvanceView>
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -50,6 +50,7 @@ import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
 import com.touhuwai.control.utils.LogToFile;
 import com.touhuwai.control.utils.RandomNumberUtil;
+import com.touhuwai.hiadvbox.Control;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
 
@@ -75,7 +76,7 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     private SQLiteDatabase db;
-    private HiAdvBox hi_adv_box;
+    private Control control;
     private MqttAsyncClient mqttClient;
     private MqttClientPersistence persistence = new MemoryPersistence();
     public static final String TOPIC = "touhuwai/player/", TOPIC_DEFAULT = "touhuwai/player/default/";
@@ -112,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 isPlayDefault = true;
-                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
+                MainActivity.this.runOnUiThread(() -> control.restartWork(dataList));
             } else {
                 mTimeRemaining --;
                 mTimerHandler.postDelayed(this, DELAY_TIME);
@@ -202,8 +203,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         progressBar = findViewById(R.id.progress);
         progressBar.setProgress(progress);
-        hi_adv_box = findViewById(R.id.hi_adv_box);
-        hi_adv_box.init(this, db);
+        control = findViewById(R.id.control);
+        control.init(this, db);
     }
 
     private long lastMessageTime;
@@ -251,7 +252,7 @@ public class MainActivity extends AppCompatActivity {
                                 // 垫播列表，收到消息后先下载至本地，后续由监听器切换
                                 List<HiAdvItem> hiAdvItems = messageToAdvance(playList, true, currentTimeMillis);
                                 if (isPlayDefault) {
-                                    MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(hiAdvItems));
+                                    MainActivity.this.runOnUiThread(() -> control.restartWork(hiAdvItems));
                                 }
                                 return;
                             } else {
@@ -266,9 +267,9 @@ public class MainActivity extends AppCompatActivity {
                             List<HiAdvItem> finalDataList = dataList;
                             if (currentTimeMillis == lastMessageTime) {
                                 progressBar.setVisibility(View.INVISIBLE);
-                                hi_adv_box.progress = progress;
+                                control.progress = progress;
                                 isPlayDefault = false;
-                                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
+                                MainActivity.this.runOnUiThread(() -> control.restartWork(finalDataList));
                             }
                         }
                     } catch (Exception e) {
@@ -340,7 +341,7 @@ public class MainActivity extends AppCompatActivity {
             Double v = (i+ 1) * 1.0 / playList.length() * 100;
             progress = v.intValue();
             progressBar.setProgress(progress);
-            hi_adv_box.progress = progress;
+            control.progress = progress;
             if (currentTimeMillis < lastMessageTime && !isDefaultPlay) {
                 // 接收到新消息，前置消息不再下载
                 return dataList;

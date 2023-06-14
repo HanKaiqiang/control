@@ -39,14 +39,18 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
     //外部监听器
     IAdvPlayEventListener mExternalEventListener;
 
+    IAdvPlayEventListener endListener;
+
     private List<Fragment> fragmentList = new ArrayList<>();
 
     private int mPosition = 0;
 
     public int progress = 0;
 
-    public HiAdvBox(Context context) {
+    public HiAdvBox(Context context, IAdvPlayEventListener listener) {
         super(context);
+        initView(context);
+        this.endListener = listener;
         Log.i(TAG, "in HiAdvBox(Context context)...");
     }
 
@@ -138,11 +142,11 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                             switch (resType) {
                                 case 0://图片
                                     Log.i(TAG, "creating an image frag");
-                                    frag = ImageFragment.newInstance(item, HiAdvBox.this, progress);
+                                    frag = ImageFragment.newInstance(item, endListener, progress);
                                     break;
                                 case 1://视频
                                     Log.i(TAG, "creating a video frag");
-                                    frag = VideoFragment.newInstance(item, HiAdvBox.this, progress);
+                                    frag = VideoFragment.newInstance(item, endListener, progress);
                                     break;
                                 default:
                                     Log.w(TAG, "unexpected resType!");
@@ -220,5 +224,9 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         int finalPosition = position;
         mActivity.runOnUiThread(() -> mVp2.setCurrentItem(finalPosition, false));
 
+    }
+
+    public void setCurrentItem(Integer position){
+        mActivity.runOnUiThread(() -> mVp2.setCurrentItem(position, false));
     }
 }
