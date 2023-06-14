@@ -24,7 +24,7 @@ public class DbHelper extends SQLiteOpenHelper  {
     public static final String  DEFAULT_TABLE = "default_play";
 
     public static String SELECT_FILE_TABLE_SQL = "select * from " + FILE_TABLE + " where 1 = 1 ";
-
+    public static String SELECT_OCCUPIED_FILE_SQL = "select * from " + FILE_TABLE + " where 1 = 1 and occupy = 1";
     public static String UPDATE_FILE_UNOCCUPIED_SQL = "update " + FILE_TABLE + " set occupy = 0" + " where 1 = 1 ";
 
     public static String UPDATE_FILE_OCCUPIED_SQL = "update " + FILE_TABLE + " set occupy = 1" + " where 1 = 1 ";
@@ -103,7 +103,11 @@ public class DbHelper extends SQLiteOpenHelper  {
     }
 
     public static List<FileDto> queryFileDtoList (SQLiteDatabase db) {
-        Cursor cursor = db.rawQuery(SELECT_FILE_TABLE_SQL,null);
+        return queryFileDtoListBySql(db, SELECT_FILE_TABLE_SQL);
+    }
+
+    public static List<FileDto> queryFileDtoListBySql (SQLiteDatabase db, String sql) {
+        Cursor cursor = db.rawQuery(sql,null);
         List<FileDto> fileDtoList = new ArrayList<>();
         if (cursor.getCount() != 0) {
             cursor.moveToFirst();  //移动到首位

@@ -132,12 +132,13 @@ public class VideoFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        Log.i(TAG, "onResume()");
-        if(vv1==null){
+        String localResourceFilePath = mAdvItem.getLocalResourceFilePath();
+        Log.i(TAG, "开始播放视频：" + localResourceFilePath);
+        if (vv1 == null) {
             Log.e(TAG, "videoView is null!");
         }
-        if(!new File(mAdvItem.getLocalResourceFilePath()).exists()){
-            Log.e(TAG, "要播放的文件不存在" + mAdvItem.getLocalResourceFilePath());
+        if (!new File(localResourceFilePath).exists()) {
+            Log.e(TAG, "要播放的文件不存在" + localResourceFilePath);
             startTime = new Date();
             endTime = startTime;
             mListener.onPlayAdvItemResult(false,
@@ -162,13 +163,12 @@ public class VideoFragment extends Fragment {
                 );
                 return true;
             });
-            String localResourceFilePath = mAdvItem.getLocalResourceFilePath();
             vv1.setVideoPath(localResourceFilePath);
             vv1.seekTo(0);
             vv1.start();
             startTime = new Date();
             vv1.setOnCompletionListener(mp -> {
-                Log.i(TAG, "play video end");
+                Log.i(TAG, "视频播放结束：" + localResourceFilePath);
                 endTime = new Date();
                 mListener.onPlayAdvItemResult(true,
                         mAdvItem.getResourceId(),
@@ -178,8 +178,8 @@ public class VideoFragment extends Fragment {
                         endTime
                 );
             });
-        }catch (Exception e){
-            Log.e("VideoFragment", e.getMessage(), e);
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage(), e);
         }
     }
 

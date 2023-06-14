@@ -10,6 +10,7 @@ import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.SELECT_OCCUPIED_FILE_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_OCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_UNOCCUPIED_SQL;
@@ -44,6 +45,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.touhuwai.control.db.DbHelper;
+import com.touhuwai.control.entry.FileDto;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
 import com.touhuwai.control.utils.LogToFile;
@@ -303,6 +305,16 @@ public class MainActivity extends AppCompatActivity {
         if (mqttServer.getCount() == 0) {
             return false;
         }
+//        if (!networkIsConnect()) { // 未联网，继续播放重启之前的内容
+//            List<FileDto> fileDtoList = DbHelper.queryFileDtoListBySql(db, SELECT_OCCUPIED_FILE_SQL);
+//            if (fileDtoList.size() > 0) {
+//                List<HiAdvItem> dataList = new ArrayList<>();
+//                for (FileDto fileDto : fileDtoList) {
+//                    dataList.add(new HiAdvItem(TYPE_MAP.get(fileDto.), fileDto., fileDto.url, fileDto.path));
+//                }
+//            }
+//        }
+
         mqttServer.moveToFirst();
         //  "tcp://192.168.5.120:1883"
         String SERVER_URI = mqttServer.getString(1).trim();
@@ -394,7 +406,9 @@ public class MainActivity extends AppCompatActivity {
                 int occupy = cursor.getInt(6);
                 int id = cursor.getInt(0);
                 if (occupy != FILE_OCCUPY) {
-                    FileUtils.deleteTempFile(new File(path), DEFAULT_RETRY_COUNT);
+                    if (path != null) {
+                        FileUtils.deleteTempFile(new File(path), DEFAULT_RETRY_COUNT);
+                    }
                 } else {
                     db.execSQL(UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL + " and id = " + id); // 更新为未占用
                 }
