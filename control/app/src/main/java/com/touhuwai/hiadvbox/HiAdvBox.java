@@ -95,9 +95,9 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         }
         mVp2.setAdapter(null);
         mVp2.setPageTransformer(new AccordionTransformer());
-        if (mAdvItemsList.size() > 0) {
-            mVp2.setOffscreenPageLimit(1);
-        }
+//        if (mAdvItemsList.size() > 0) {
+//            mVp2.setOffscreenPageLimit(1);
+//        }
         if (adapter == null) {
             adapter = new FragmentStateAdapter(mActivity) {
                 @NonNull
