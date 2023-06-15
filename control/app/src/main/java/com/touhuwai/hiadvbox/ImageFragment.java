@@ -71,7 +71,7 @@ public class ImageFragment extends Fragment {
             Log.i(TAG, "开始播放图片" + imageUrl);
 //            new Thread(new MyThread(mAdvItem.getResourceDuration())).start();
         } else {
-            mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE, 0, new Date(), new Date());
+            mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE, 0, new Date(), new Date(), this);
         }
     }
 
@@ -79,15 +79,18 @@ public class ImageFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (mAdvItem.getLocalResourceFilePath() != null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
-            new Thread(new MyThread(mAdvItem.getResourceDuration())).start();
+            new Thread(new MyThread(mAdvItem.getResourceDuration(), this)).start();
         }
     }
 
     public class MyThread implements Runnable{
         private int tDuration = 5;
 
-        public MyThread(int duration) {
+        private ImageFragment fragment;
+
+        public MyThread(int duration, ImageFragment fragment) {
             tDuration = duration;
+            this.fragment = fragment;
         }
 
         int countSec = 0;
@@ -104,31 +107,22 @@ public class ImageFragment extends Fragment {
                     countSec ++;
                     Thread.sleep(1000);//线程暂停10秒，单位毫秒
                 }
+                if (isStop) {
+                    Log.e(TAG, "节目切换 停止当前");
+                    return;
+                }
                 Log.i(TAG, "结束播放图片" + mAdvItem.getResourceUrl());
                 endTime = new Date();
                 if (mListener != null) {
-                    mListener.onPlayAdvItemResult(
-                            true,
-                            mAdvItem.getResourceId(),
-                            AdvConstants.RES_TYPE_IMAGE,
-                            countSec,
-                            startTime,
-                            endTime
-                    );
+                    mListener.onPlayAdvItemResult( true, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE, countSec,
+                            startTime,  endTime, this.fragment);
                 }
 //                mListener = null;
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 endTime = new Date();
-                mListener.onPlayAdvItemResult(
-                        false,
-                        mAdvItem.getResourceId(),
-                        AdvConstants.RES_TYPE_IMAGE,
-                        countSec,
-                        startTime,
-                        endTime
-                );
-                mListener = null;
+                mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE,
+                        countSec, startTime, endTime, this.fragment);
             }
         }
     }

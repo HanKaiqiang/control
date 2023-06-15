@@ -133,8 +133,8 @@ public class MainActivity extends AppCompatActivity {
         fileDir = FileUtils.getFilePath(this.getApplicationContext(), "");
         defaultFileDir = FileUtils.getFilePath(this.getApplicationContext(), "default/");
         deviceId = DeviceInfoUtil.getDeviceId(this.getApplicationContext());
-        LogToFile.createLogFile(this.getApplicationContext());
-        LogToFile.writeLogToFile();
+//        LogToFile.createLogFile(this.getApplicationContext());
+//        LogToFile.writeLogToFile();
     }
 
     @Override
@@ -258,6 +258,7 @@ public class MainActivity extends AppCompatActivity {
                                 if (!jsonObject.isNull("totalDuration")) {
                                     int totalDuration = jsonObject.getInt("totalDuration");
                                     mTimeRemaining = totalDuration;
+                                    mTimerHandler.removeCallbacks(mTimerRunnable);
                                     mTimerHandler.postDelayed(mTimerRunnable, DELAY_TIME);
                                 }
                             }

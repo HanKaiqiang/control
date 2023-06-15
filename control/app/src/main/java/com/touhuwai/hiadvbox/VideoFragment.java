@@ -146,7 +146,7 @@ public class VideoFragment extends Fragment {
                     AdvConstants.RES_TYPE_VIDEO,
                     (int) AdvDateUtil.diffSecond(startTime, endTime),
                     startTime,
-                    endTime
+                    endTime, null
             );
             return;
         }
@@ -159,7 +159,7 @@ public class VideoFragment extends Fragment {
                         AdvConstants.RES_TYPE_VIDEO,
                         (int) AdvDateUtil.diffSecond(startTime, endTime),
                         startTime,
-                        endTime
+                        endTime, null
                 );
                 return true;
             });
@@ -175,7 +175,7 @@ public class VideoFragment extends Fragment {
                         AdvConstants.RES_TYPE_VIDEO,
                         (int) AdvDateUtil.diffSecond(startTime, endTime),
                         startTime,
-                        endTime
+                        endTime, null
                 );
             });
         } catch (Exception e) {

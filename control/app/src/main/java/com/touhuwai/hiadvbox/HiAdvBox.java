@@ -21,7 +21,9 @@ import com.touhuwai.hiadvbox.pager.AccordionTransformer;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -88,6 +90,8 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         startWork();
     }
 
+    private Map<String, Fragment> fragmentMap = new HashMap<>();
+
     private void startWork() {
         if (mActivity == null) {
             Log.e(TAG, "assign activity with init(), please!");
@@ -105,6 +109,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                 public Fragment createFragment(int position) {
                     Log.i(TAG, "creating Fragment position=" + position);
                     Fragment frag = null;
+                    String localResourceFilePath = null;
                     try {
                         int TOTALSIZE = mAdvItemsList.size();
                         if (TOTALSIZE == 0) {
@@ -116,14 +121,19 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                         Log.i(TAG, "creating item=" + item);
                         if (item != null) {
                             int resType = item.getResourceType();
-                            String localResourceFilePath = item.getLocalResourceFilePath();
+                            localResourceFilePath = item.getLocalResourceFilePath();
                             //如果localResourceFilePath是空时查询数据库中是否异步重新下载成功
                             if (localResourceFilePath == null || localResourceFilePath.equals("null")) {
                                 String resourceUrl = item.getResourceUrl();
                                 FileDto fileDto = DbHelper.queryByUrl(db, resourceUrl);
                                 if (Objects.equals(fileDto.status, FILE_DOWN_STATUS_SUCCESS)) {
                                     item.setLocalResourceFilePath(fileDto.path);
+                                    localResourceFilePath = fileDto.path;
                                 }
+                            }
+                            Fragment fragment = fragmentMap.get(localResourceFilePath);
+                            if (fragment != null) {
+                                return fragment;
                             }
                             switch (resType) {
                                 case 0://图片
@@ -146,6 +156,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                         frag = BlankFragment.newInstance();
                     }
                     fragmentList.add(frag);
+                    fragmentMap.put(localResourceFilePath, frag);
                     return frag;
                 }
 
@@ -176,6 +187,8 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                     ((ImageFragment) fragment).isStop = true;
                 }
             }
+            fragmentList.clear();
+            fragmentMap.clear();
         }
         mPosition = 0;
         mVp2.setAdapter(null);
@@ -183,22 +196,29 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
 
 
     @Override
-    public void onPlayAdvItemResult(boolean isSucceed, String resourceId, int resourceType, int actualDuration, Date startTime, Date endTime) {
+    public void onPlayAdvItemResult(boolean isSucceed, String resourceId, int resourceType, int actualDuration, Date startTime, Date endTime, ImageFragment fragment) {
         Log.i(TAG, "播放一条 item played. resourceType=" + resourceType
                 + ", actualDuration=" + actualDuration
                 + ", startTime=" + startTime
                 + ", endTime=" + endTime
         );
 
+        if (fragment != null && fragment.isStop) {
+            Log.e(TAG, "节目切换 停止当前");
+            return;
+        }
+
         //外部回调，供外部使用
         if (mExternalEventListener != null) {
-            mExternalEventListener.onPlayAdvItemResult(isSucceed, resourceId, resourceType, actualDuration, startTime, endTime);
+            mExternalEventListener.onPlayAdvItemResult(isSucceed, resourceId, resourceType, actualDuration, startTime, endTime, null);
         }
+        int position = mVp2.getCurrentItem() + 1;
         mPosition++;
-        if (mPosition == mAdvItemsList.size()) {
-            mPosition = 0;
+        if (position == mAdvItemsList.size()) {
+            position = 0;
         }
-        mActivity.runOnUiThread(() -> mVp2.setCurrentItem(mPosition, false));
+        int finalPosition = position;
+        mActivity.runOnUiThread(() -> mVp2.setCurrentItem(finalPosition, false));
 
     }
 }
