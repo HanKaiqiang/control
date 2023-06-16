@@ -547,16 +547,17 @@ public class MainActivity extends AppCompatActivity {
     private Runnable mqttConnectRunnable = new Runnable() {
         @Override
         public void run() {
-            boolean connected = mqttClient.isConnected();
-            Log.d(TAG, "监测是否断连， 当前isConnected：" + connected);
-            if (connected) {
-                mqttConnectHandler.postDelayed(this, 10000); // 10秒监测一次是否断连
-            } else {
-                try {
+            Boolean connected = null;
+            try {
+                connected = mqttClient.isConnected();
+                if (!connected) {
                     mqttClient.connect(options, null, null).waitForCompletion();
-                } catch (MqttException e) {
-                    Log.e(TAG, e.getMessage(), e);
                 }
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage(), e);
+            } finally {
+                Log.d(TAG, "监测是否断连， 当前isConnected：" + connected);
+                mqttConnectHandler.postDelayed(this, 10000); // 10秒监测一次是否断连
             }
         }
     };
