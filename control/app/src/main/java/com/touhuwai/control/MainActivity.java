@@ -10,7 +10,6 @@ import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
-import static com.touhuwai.control.db.DbHelper.SELECT_OCCUPIED_FILE_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_OCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_UNOCCUPIED_SQL;
@@ -26,7 +25,6 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
-import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
@@ -45,11 +43,10 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.touhuwai.control.db.DbHelper;
-import com.touhuwai.control.entry.FileDto;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
-import com.touhuwai.control.utils.LogToFile;
 import com.touhuwai.control.utils.RandomNumberUtil;
+import com.touhuwai.hiadvbox.AdvanceView;
 import com.touhuwai.hiadvbox.Control;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
@@ -77,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     private SQLiteDatabase db;
     private Control control;
+    private HiAdvBox hiAdvBox;
+    private AdvanceView advanceView;
     private MqttAsyncClient mqttClient;
     private MqttClientPersistence persistence = new MemoryPersistence();
     public static final String TOPIC = "touhuwai/player/", TOPIC_DEFAULT = "touhuwai/player/default/";
@@ -204,7 +203,9 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progress);
         progressBar.setProgress(progress);
         control = findViewById(R.id.control);
-        control.init(this, db);
+        hiAdvBox = findViewById(R.id.hi_adv_box);
+        advanceView = findViewById(R.id.advance_view);
+        control.init(this, db, hiAdvBox, advanceView);
     }
 
     private long lastMessageTime;
@@ -522,7 +523,7 @@ public class MainActivity extends AppCompatActivity {
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-        setContentView(R.layout.activity_main);
+//        setContentView(R.layout.activity_main);
     }
 
     @Override

@@ -29,26 +29,13 @@ public class Control extends RelativeLayout implements IAdvPlayEventListener{
     HiAdvBox hiAdvBox;
     AdvanceView advanceView;
 
-    private void initView() {
-        hiAdvBox = findViewById(R.id.hi_adv_box);
-        advanceView = findViewById(R.id.advance_view);
-
-//        TableLayout tableLayout = new TableLayout(mActivity);
-//        LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, 0);
-//        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE);
-//        addView(tableLayout, layoutParams);
-//        hiAdvBox = new HiAdvBox(mActivity, this);
-        hiAdvBox.init(mActivity, db);
-//        advanceView = new AdvanceView(mActivity, this);
-//        addView(hiAdvBox, layoutParams);
-//        addView(advanceView, layoutParams);
-
-    }
-
-    public void init(AppCompatActivity activity, SQLiteDatabase db){
+    public void init(AppCompatActivity activity, SQLiteDatabase db, HiAdvBox hiAdvBox, AdvanceView advanceView){
         mActivity = activity;
         this.db = db;
-        initView();
+        this.hiAdvBox = hiAdvBox;
+        this.advanceView = advanceView;
+        hiAdvBox.init(mActivity, db, this);
+        advanceView.initView(this);
     }
 
     private void setData(List<HiAdvItem> itemsList){
@@ -83,7 +70,9 @@ public class Control extends RelativeLayout implements IAdvPlayEventListener{
 
     private int mPosition = 0;
     @Override
-    public void onPlayAdvItemResult(boolean isSucceed, String resourceId, int resourceType, int actualDuration, Date startTime, Date endTime) {
+    public void onPlayAdvItemResult(boolean isSucceed, String resourceId, int resourceType,
+                                    int actualDuration, Date startTime, Date endTime,
+                                    ImageFragment fragment) {
         Log.i(TAG, "播放一条 item played. resourceType=" + resourceType
                 + ", actualDuration=" + actualDuration
                 + ", startTime=" + startTime

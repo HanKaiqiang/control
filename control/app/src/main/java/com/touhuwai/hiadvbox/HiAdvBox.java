@@ -82,8 +82,9 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         addView(mVp2, mVp2Params);
     }
 
-    public void init(AppCompatActivity activity, SQLiteDatabase db){
+    public void init(AppCompatActivity activity, SQLiteDatabase db, IAdvPlayEventListener listener){
         mActivity = activity;
+        this.endListener = listener;
         this.db = db;
 
     }

@@ -28,12 +28,14 @@
 
     <com.touhuwai.hiadvbox.HiAdvBox
         android:id="@+id/hi_adv_box"
+        android:background="@color/black"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
     </com.touhuwai.hiadvbox.HiAdvBox>
 
     <com.touhuwai.hiadvbox.AdvanceView
         android:id="@+id/advance_view"
+        android:background="@color/black"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
     </com.touhuwai.hiadvbox.AdvanceView>

@@ -87,14 +87,7 @@ public class AdvancePagerAdapter extends PagerAdapter implements ViewPager.OnPag
                         duration = ((AdvanceImageView) view).duration * 1000;
                     }
                     if (current >= duration) {
-                        endListener.onPlayAdvItemResult(
-                                true,
-                                "1",
-                                AdvConstants.RES_TYPE_IMAGE,
-                                duration,
-                                null,
-                                null
-                        );
+                        endListener.onPlayAdvItemResult( true, "1", AdvConstants.RES_TYPE_IMAGE, duration, null, null, null);
 //                        viewPager.post(() -> viewPager.setCurrentItem(viewPager.getCurrentItem() + 1, true));
                         current = 0;
                     }

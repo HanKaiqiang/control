@@ -16,25 +16,15 @@ public class AdvanceView extends RelativeLayout {
     private List<View> views = new ArrayList<>();
     private AdvancePagerAdapter adapter;
 
-    private IAdvPlayEventListener endListener;
-
-    public AdvanceView(Context context, IAdvPlayEventListener listener) {
-        super(context);
-        endListener = listener;
-        initView();
-    }
-
     public AdvanceView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        initView();
     }
 
     public AdvanceView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        initView();
     }
 
-    private void initView() {
+    public void initView(IAdvPlayEventListener endListener) {
         viewPager = new ViewPager(getContext());
         adapter = new AdvancePagerAdapter(getContext(), viewPager, endListener);
         viewPager.setAdapter(adapter);
@@ -46,7 +36,7 @@ public class AdvanceView extends RelativeLayout {
     }
 
     public void setCurrentItem(Integer position){
-        viewPager.post(() -> viewPager.setCurrentItem(position, true));
+        viewPager.post(() -> viewPager.setCurrentItem(position, false));
     }
 
     public void setPause(){
