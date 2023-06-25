@@ -109,7 +109,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                 public Fragment createFragment(int position) {
                     Log.i(TAG, "creating Fragment position=" + position);
                     Fragment frag = null;
-                    String localResourceFilePath = null;
+                    String resourceId = null;
                     try {
                         int TOTALSIZE = mAdvItemsList.size();
                         if (TOTALSIZE == 0) {
@@ -121,17 +121,17 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                         Log.i(TAG, "creating item=" + item);
                         if (item != null) {
                             int resType = item.getResourceType();
-                            localResourceFilePath = item.getLocalResourceFilePath();
+                            resourceId = item.getResourceId();
+                            String localResourceFilePath = item.getLocalResourceFilePath();
                             //如果localResourceFilePath是空时查询数据库中是否异步重新下载成功
                             if (localResourceFilePath == null || localResourceFilePath.equals("null")) {
                                 String resourceUrl = item.getResourceUrl();
                                 FileDto fileDto = DbHelper.queryByUrl(db, resourceUrl);
                                 if (Objects.equals(fileDto.status, FILE_DOWN_STATUS_SUCCESS)) {
                                     item.setLocalResourceFilePath(fileDto.path);
-                                    localResourceFilePath = fileDto.path;
                                 }
                             }
-                            Fragment fragment = fragmentMap.get(localResourceFilePath);
+                            Fragment fragment = fragmentMap.get(resourceId);
                             if (fragment != null) {
                                 return fragment;
                             }
@@ -156,7 +156,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                         frag = BlankFragment.newInstance();
                     }
                     fragmentList.add(frag);
-                    fragmentMap.put(localResourceFilePath, frag);
+                    fragmentMap.put(resourceId, frag);
                     return frag;
                 }
 
