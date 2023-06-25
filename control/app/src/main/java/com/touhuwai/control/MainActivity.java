@@ -144,6 +144,7 @@ public class MainActivity extends AppCompatActivity {
         DbHelper dbHelper = new DbHelper(getApplicationContext());
         db = dbHelper.getWritableDatabase();
         requestPermissions();
+        FileUtils.handleSSLHandshake();
         setContentView(R.layout.activity_loading);
         showView();
     }

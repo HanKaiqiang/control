@@ -22,11 +22,18 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URL;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 public class FileUtils {
 
@@ -204,6 +211,32 @@ public class FileUtils {
         long availableSize = statFs.getAvailableBytes();
         if (availableSize < MIN_FREE_BYTES) {
             deleteFiles(db);
+        }
+    }
+
+
+    public static void handleSSLHandshake() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+
+                @Override
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
+            }};
+
+            SSLContext sc = SSLContext.getInstance("TLS");
+            // trustAllCerts信任所有的证书
+            sc.init(null, trustAllCerts, new SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+        } catch (Exception ignored) {
         }
     }
 
