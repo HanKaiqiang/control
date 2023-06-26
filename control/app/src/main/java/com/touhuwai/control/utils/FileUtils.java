@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -78,6 +79,8 @@ public class FileUtils {
     public static String downFile(String fileUrl, String fileDir, SQLiteDatabase db) throws Exception {
         // 获取文件名
         String fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
+        String[] split = fileName.split("\\.");
+        fileName = UUID.randomUUID().toString().substring(0,8) + System.currentTimeMillis() + "." + split[1];
         String filePath = fileDir + fileName;
         filePath = downFileWithPath(fileUrl, filePath, db);
         return filePath;
