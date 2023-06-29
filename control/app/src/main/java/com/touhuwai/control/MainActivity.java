@@ -530,6 +530,7 @@ public class MainActivity extends AppCompatActivity {
         // 断开MQTT连接
         try {
             mqttClient.disconnect();
+            mqttConnectHandler.removeCallbacks(mqttConnectRunnable);
         } catch (MqttException e) {
            Log.e(TAG, e.getMessage(), e);
         }
