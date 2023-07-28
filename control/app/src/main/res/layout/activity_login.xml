@@ -8,10 +8,21 @@
 
 
     <TextView
+        android:id="@+id/wifi_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="0dp"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#303030"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="MissingConstraints" />
+
+    <TextView
         android:id="@+id/device_info_text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="0dp"
+        android:layout_marginTop="15dp"
         android:padding="0dp"
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:textColor="#FFFFFF"

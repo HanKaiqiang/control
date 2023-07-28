@@ -1,5 +1,6 @@
 package com.touhuwai.control.utils;
 
+import static android.content.Context.WIFI_SERVICE;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -46,6 +47,12 @@ public class DeviceInfoUtil {
             return !TextUtils.isEmpty(imei) ? imei : androidId;
         }
     }
+    public static int getRssi (Context context) {
+        WifiManager wifi_service = (WifiManager)context.getSystemService(WIFI_SERVICE);
+        WifiInfo wifiInfo = wifi_service.getConnectionInfo();
+        return wifiInfo.getRssi();
+    }
+
     public static String getDeviceIpAddress(Context context) {
         ConnectivityManager connManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (connManager != null) {

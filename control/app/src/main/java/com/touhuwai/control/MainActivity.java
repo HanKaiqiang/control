@@ -30,8 +30,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -94,6 +92,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPlayDefault = true;
     private int qos = 0;
 
+    private TextView wifiTextView;
+
     private Server mServer;
     private Handler mTimerHandler = new Handler();
     private Runnable mTimerRunnable = new Runnable() {
@@ -146,13 +146,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EventBus.getDefault().register(this);
         serverInit();
-        fullScreen();
         DbHelper dbHelper = new DbHelper(getApplicationContext());
         db = dbHelper.getWritableDatabase();
         requestPermissions();
         FileUtils.handleSSLHandshake();
         setContentView(R.layout.activity_loading);
         showView();
+        wifiRssi();
     }
 
     private int progress = 0;
@@ -521,21 +521,28 @@ public class MainActivity extends AppCompatActivity {
         return result;
     }
 
-
-    private void fullScreen() {
-        // 隐藏状态栏、标题栏
-        supportRequestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-        // 设置全屏模式
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-        setContentView(R.layout.activity_main);
+    private void wifiRssi() {
+        wifiTextView = findViewById(R.id.wifi_text_view);
+        int rssi = DeviceInfoUtil.getRssi(getApplicationContext());
+        String text = "rssi:" + rssi;
+        wifiTextView.setText(text);
+        mqttConnectHandler.postDelayed(wifiRssiRunnable, 5); // 10秒监测一次是否断连
     }
+    private Runnable wifiRssiRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                wifiTextView = findViewById(R.id.wifi_text_view);
+                int rssi = DeviceInfoUtil.getRssi(getApplicationContext());
+                String text = "rssi:" + rssi;
+                wifiTextView.setText(text);
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage(), e);
+            } finally {
+                mqttConnectHandler.postDelayed(this, 5); // 10秒监测一次是否断连
+            }
+        }
+    };
 
     private void serverInit () {
         mServer = AndServer.webServer(this).port(18884)
@@ -562,6 +569,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             mqttClient.disconnect();
             mqttConnectHandler.removeCallbacks(mqttConnectRunnable);
+            mqttConnectHandler.removeCallbacks(wifiRssiRunnable);
         } catch (MqttException e) {
            Log.e(TAG, e.getMessage(), e);
         }

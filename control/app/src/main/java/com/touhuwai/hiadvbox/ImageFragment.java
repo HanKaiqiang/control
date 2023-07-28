@@ -1,12 +1,14 @@
 package com.touhuwai.hiadvbox;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,6 +16,7 @@ import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
 import com.touhuwai.control.R;
+import com.touhuwai.control.utils.DeviceInfoUtil;
 
 import java.util.Date;
 
@@ -61,6 +64,12 @@ public class ImageFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        wifiTextView = getView().findViewById(R.id.wifi_text_view);
+        int rssi = DeviceInfoUtil.getRssi(getContext());
+        String text = "rssi:" + rssi;
+        wifiTextView.setText(text);
+        wifiHandler.postDelayed(wifiRssiRunnable, 5); // 10秒监测一次是否断连
+
         String imageUrl = mAdvItem.getLocalResourceFilePath();
         if (mAdvItem.getLocalResourceFilePath() != null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
             startTime = new Date();
@@ -74,6 +83,20 @@ public class ImageFragment extends Fragment {
             mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE, 0, new Date(), new Date(), this);
         }
     }
+    private TextView wifiTextView;
+    private Handler wifiHandler = new Handler();
+    private Runnable wifiRssiRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                int rssi = DeviceInfoUtil.getRssi(getContext());
+                String text = "rssi:" + rssi;
+                wifiTextView.setText(text);
+            } finally {
+                wifiHandler.postDelayed(this, 5); // 10秒监测一次是否断连
+            }
+        }
+    };
 
     @Override
     public void onResume() {
@@ -127,4 +150,9 @@ public class ImageFragment extends Fragment {
         }
     }
 
+    @Override
+    public void onDestroy() {
+        wifiHandler.removeCallbacks(wifiRssiRunnable);
+        super.onDestroy();
+    }
 }
