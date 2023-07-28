@@ -10,7 +10,6 @@ import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
-import static com.touhuwai.control.db.DbHelper.SELECT_OCCUPIED_FILE_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_OCCUPIED_SQL;
 import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_UNOCCUPIED_SQL;
@@ -26,7 +25,6 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
-import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
@@ -45,13 +43,14 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.touhuwai.control.db.DbHelper;
-import com.touhuwai.control.entry.FileDto;
+import com.touhuwai.control.entry.Event;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
-import com.touhuwai.control.utils.LogToFile;
 import com.touhuwai.control.utils.RandomNumberUtil;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
+import com.yanzhenjie.andserver.AndServer;
+import com.yanzhenjie.andserver.Server;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
@@ -61,6 +60,9 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -71,6 +73,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -91,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPlayDefault = true;
     private int qos = 0;
 
+    private Server mServer;
     private Handler mTimerHandler = new Handler();
     private Runnable mTimerRunnable = new Runnable() {
         @Override
@@ -140,6 +144,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EventBus.getDefault().register(this);
+        serverInit();
         fullScreen();
         DbHelper dbHelper = new DbHelper(getApplicationContext());
         db = dbHelper.getWritableDatabase();
@@ -238,39 +244,7 @@ public class MainActivity extends AppCompatActivity {
                 public void messageArrived(String topic, MqttMessage message) {
                     try {
                         String payload = new String(message.getPayload());
-                        List<HiAdvItem> dataList = new ArrayList<>();
-                        if ("".equals(payload)) {
-//                            dataList.add(new Advance(R.drawable.img, 0));
-                        } else {
-                            long currentTimeMillis = System.currentTimeMillis();
-                            lastMessageTime = currentTimeMillis;
-                            JSONObject jsonObject = new JSONObject(payload);
-                            JSONArray playList = jsonObject.getJSONArray("playList");
-                            boolean type = jsonObject.isNull("type");
-                            if (topic.startsWith(TOPIC_DEFAULT) || (!type && "default".equals(jsonObject.getString("type")))) {
-                                // 垫播列表，收到消息后先下载至本地，后续由监听器切换
-                                List<HiAdvItem> hiAdvItems = messageToAdvance(playList, true, currentTimeMillis);
-                                if (isPlayDefault) {
-                                    MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(hiAdvItems));
-                                }
-                                return;
-                            } else {
-                                dataList = messageToAdvance(playList, false, currentTimeMillis);
-                                if (!jsonObject.isNull("totalDuration")) {
-                                    int totalDuration = jsonObject.getInt("totalDuration");
-                                    mTimeRemaining = totalDuration;
-                                    mTimerHandler.removeCallbacks(mTimerRunnable);
-                                    mTimerHandler.postDelayed(mTimerRunnable, DELAY_TIME);
-                                }
-                            }
-                            List<HiAdvItem> finalDataList = dataList;
-                            if (currentTimeMillis == lastMessageTime) {
-                                progressBar.setVisibility(View.INVISIBLE);
-                                hi_adv_box.progress = progress;
-                                isPlayDefault = false;
-                                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
-                            }
-                        }
+                        arrived(topic, payload);
                     } catch (Exception e) {
                         Log.e("MainActivity", e.getMessage(), e);
                         publish(TOPIC + "error", e.getMessage().getBytes(StandardCharsets.UTF_8));
@@ -289,6 +263,45 @@ public class MainActivity extends AppCompatActivity {
         } catch (MqttException e) {
             Log.e("MainActivity", e.getMessage(), e);
             return false;
+        }
+    }
+
+    private void arrived (String topic, String payload) throws Exception {
+        List<HiAdvItem> dataList = new ArrayList<>();
+        if (payload == null || "".equals(payload)) {
+//                            dataList.add(new Advance(R.drawable.img, 0));
+        } else {
+            long currentTimeMillis = System.currentTimeMillis();
+            lastMessageTime = currentTimeMillis;
+            JSONObject jsonObject = new JSONObject(payload);
+            if (topic == null) {
+                topic = jsonObject.getString("topic");
+            }
+            JSONArray playList = jsonObject.getJSONArray("playList");
+            boolean type = jsonObject.isNull("type");
+            if (topic.startsWith(TOPIC_DEFAULT) || (!type && "default".equals(jsonObject.getString("type")))) {
+                // 垫播列表，收到消息后先下载至本地，后续由监听器切换
+                List<HiAdvItem> hiAdvItems = messageToAdvance(playList, true, currentTimeMillis);
+                if (isPlayDefault) {
+                    MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(hiAdvItems));
+                }
+                return;
+            } else {
+                dataList = messageToAdvance(playList, false, currentTimeMillis);
+                if (!jsonObject.isNull("totalDuration")) {
+                    int totalDuration = jsonObject.getInt("totalDuration");
+                    mTimeRemaining = totalDuration;
+                    mTimerHandler.removeCallbacks(mTimerRunnable);
+                    mTimerHandler.postDelayed(mTimerRunnable, DELAY_TIME);
+                }
+            }
+            List<HiAdvItem> finalDataList = dataList;
+            if (currentTimeMillis == lastMessageTime) {
+                progressBar.setVisibility(View.INVISIBLE);
+                hi_adv_box.progress = progress;
+                isPlayDefault = false;
+                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
+            }
         }
     }
 
@@ -524,9 +537,27 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
     }
 
+    private void serverInit () {
+        mServer = AndServer.webServer(this).port(18884)
+                .timeout(10, TimeUnit.SECONDS).listener(new Server.ServerListener() {
+                    @Override
+                    public void onStarted() {
+                    }
+                    @Override
+                    public void onStopped() {
+                    }
+                    @Override
+                    public void onException(Exception e) {
+                    }
+                }).build();
+        mServer.startup();
+    }
+
     @Override
     protected void onDestroy() {
+        EventBus.getDefault().unregister(this);
         super.onDestroy();
+        mServer.shutdown();
         // 断开MQTT连接
         try {
             mqttClient.disconnect();
@@ -534,6 +565,12 @@ public class MainActivity extends AppCompatActivity {
         } catch (MqttException e) {
            Log.e(TAG, e.getMessage(), e);
         }
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void msg (Event event) throws Exception {
+        System.out.println(event.getMsg());
+        arrived(null, event.getMsg());
     }
 
     public boolean networkIsConnect () {
