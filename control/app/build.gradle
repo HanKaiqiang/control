@@ -25,6 +25,13 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    applicationVariants.all {
+        variant ->
+            variant.outputs.all {
+                // THWControlv1.2.7.apk
+                outputFileName = "THWControlv${defaultConfig.versionName}.apk"
+            }
+    }
 }
 
 dependencies {
