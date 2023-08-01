@@ -9,8 +9,8 @@ android {
         applicationId "com.touhuwai.control"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 128
-        versionName "1.2.8"
+        versionCode 129
+        versionName "1.2.9"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

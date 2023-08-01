@@ -1,5 +1,6 @@
 package com.touhuwai.hiadvbox;
 
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -69,18 +70,24 @@ public class ImageFragment extends Fragment {
         String text = "rssi:" + rssi;
         wifiTextView.setText(text);
         wifiHandler.postDelayed(wifiRssiRunnable, 5); // 10秒监测一次是否断连
-
         String imageUrl = mAdvItem.getLocalResourceFilePath();
-        if (mAdvItem.getLocalResourceFilePath() != null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
-            startTime = new Date();
-            Glide.with(this)
-                    .load(mAdvItem.getLocalResourceFilePath())
-                    .transform(new GlideBitmapTransformation())
-                    .into(iv_pic);
-            Log.i(TAG, "开始播放图片" + imageUrl);
-//            new Thread(new MyThread(mAdvItem.getResourceDuration())).start();
+        if (imageUrl != null && !imageUrl.equals("null") && !imageUrl.isEmpty()) {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(imageUrl, options);
+            if (options.outWidth == -1) {
+                new Thread(new MyThread(0, this)).start();
+            } else {
+                startTime = new Date();
+                Glide.with(this)
+                        .load(imageUrl)
+                        .transform(new GlideBitmapTransformation())
+                        .error(R.drawable.img)
+                        .into(iv_pic);
+                Log.i(TAG, "开始播放图片" + imageUrl);
+            }
         } else {
-            mListener.onPlayAdvItemResult(false, mAdvItem.getResourceId(), AdvConstants.RES_TYPE_IMAGE, 0, new Date(), new Date(), this);
+            new Thread(new MyThread(0, this)).start();
         }
     }
     private TextView wifiTextView;
@@ -101,8 +108,11 @@ public class ImageFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        if (mAdvItem.getLocalResourceFilePath() != null || !mAdvItem.getLocalResourceFilePath().isEmpty()) {
+        String localResourceFilePath = mAdvItem.getLocalResourceFilePath();
+        if (localResourceFilePath != null && !localResourceFilePath.equals("null") && !localResourceFilePath.isEmpty()) {
             new Thread(new MyThread(mAdvItem.getResourceDuration(), this)).start();
+        } else {
+            new Thread(new MyThread(0, this)).start();
         }
     }
 
