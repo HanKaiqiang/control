@@ -29,6 +29,7 @@ import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -42,6 +43,7 @@ import androidx.core.content.ContextCompat;
 
 import com.touhuwai.control.db.DbHelper;
 import com.touhuwai.control.entry.Event;
+import com.touhuwai.control.entry.ServerDto;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
 import com.touhuwai.control.utils.RandomNumberUtil;
@@ -151,14 +153,14 @@ public class MainActivity extends AppCompatActivity {
         requestPermissions();
         FileUtils.handleSSLHandshake();
         setContentView(R.layout.activity_loading);
-        showView();
+        showView(false);
         wifiRssi();
     }
 
     private int progress = 0;
 
-    private void showView () {
-        if (!checkMqttServer()) {
+    private void showView (boolean isBack) {
+        if (isBack || !checkMqttServer()) {
             setContentView(R.layout.activity_login);
             TextView deviceInfoTextView = findViewById(R.id.device_info_text_view);
             String text = "DeviceId：" + deviceId + "\n" +
@@ -173,6 +175,12 @@ public class MainActivity extends AppCompatActivity {
             mUsernameEditText = findViewById(R.id.username);
             mPasswordEditText = findViewById(R.id.password);
             mConnectButton = findViewById(R.id.connect);
+            ServerDto serverInfo = getServerInfo();
+            if (serverInfo != null) {
+                mServerIpEditText.setText(serverInfo.url.replace("tcp://", "").replace(":1883", ""));
+                mUsernameEditText.setText(serverInfo.userName);
+                mPasswordEditText.setText(serverInfo.password);
+            }
             mConnectButton.setOnClickListener(view -> {
                 String serverIp = mServerIpEditText.getText().toString().trim();
                 String username = mUsernameEditText.getText().toString().trim();
@@ -315,11 +323,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private boolean checkMqttServer () {
+    private ServerDto getServerInfo() {
         Cursor mqttServer = db.rawQuery(SELECT_MQTT_TABLE_SQL, null);
         if (mqttServer.getCount() == 0) {
-            return false;
+            return null;
         }
+
+        mqttServer.moveToFirst();
+        ServerDto serverDto = new ServerDto();
+        //  "tcp://192.168.5.120:1883"
+        serverDto.url = mqttServer.getString(1).trim();
+        serverDto.userName = mqttServer.getString(2).trim();
+        serverDto.password = mqttServer.getString(3).trim();
+        return serverDto;
+    }
+
+    private boolean checkMqttServer () {
 //        if (!networkIsConnect()) { // 未联网，继续播放重启之前的内容
 //            List<FileDto> fileDtoList = DbHelper.queryFileDtoListBySql(db, SELECT_OCCUPIED_FILE_SQL);
 //            if (fileDtoList.size() > 0) {
@@ -329,13 +348,11 @@ public class MainActivity extends AppCompatActivity {
 //                }
 //            }
 //        }
-
-        mqttServer.moveToFirst();
-        //  "tcp://192.168.5.120:1883"
-        String SERVER_URI = mqttServer.getString(1).trim();
-        String USERNAME = mqttServer.getString(2).trim();
-        String PASSWORD = mqttServer.getString(3).trim();
-        boolean mqttConnect = mqtt(SERVER_URI, USERNAME, PASSWORD);
+        ServerDto serverInfo = getServerInfo();
+        if (serverInfo == null) {
+            return false;
+        }
+        boolean mqttConnect = mqtt(serverInfo.url, serverInfo.userName, serverInfo.password);
         if (mqttConnect) {
             return true;
         } else {
@@ -561,9 +578,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+//            case KeyEvent.KEYCODE_ENTER:     //确定键enter
+//            case KeyEvent.KEYCODE_DPAD_CENTER:
+//                Log.d(TAG,"enter--->");
+//                break;
+//            case KeyEvent.KEYCODE_BACK:    //返回键
+//                Log.d(TAG,"back--->");
+//                setContentView(R.layout.activity_login);
+//                return true;   //这里由于break会退出，所以我们自己要处理掉 不返回上一层
+            case KeyEvent.KEYCODE_0:   //数字键0
+                Log.d(TAG,"0--->");
+                destroy();
+                showView(true);
+                break;
+            default:
+                break;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
     protected void onDestroy() {
         EventBus.getDefault().unregister(this);
         super.onDestroy();
+        destroy();
+    }
+
+    private void destroy() {
         mServer.shutdown();
         // 断开MQTT连接
         try {
@@ -571,7 +614,7 @@ public class MainActivity extends AppCompatActivity {
             mqttConnectHandler.removeCallbacks(mqttConnectRunnable);
             mqttConnectHandler.removeCallbacks(wifiRssiRunnable);
         } catch (MqttException e) {
-           Log.e(TAG, e.getMessage(), e);
+            Log.e(TAG, e.getMessage(), e);
         }
     }
 
