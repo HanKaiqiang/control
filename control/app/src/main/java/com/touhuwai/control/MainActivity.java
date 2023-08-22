@@ -180,6 +180,9 @@ public class MainActivity extends AppCompatActivity {
                 mServerIpEditText.setText(serverInfo.url.replace("tcp://", "").replace(":1883", ""));
                 mUsernameEditText.setText(serverInfo.userName);
                 mPasswordEditText.setText(serverInfo.password);
+                if (!isBack) {
+                    mqttConnectHandler.postDelayed(mqttReConnectRunnable, 5);
+                }
             }
             mConnectButton.setOnClickListener(view -> {
                 String serverIp = mServerIpEditText.getText().toString().trim();
@@ -356,8 +359,8 @@ public class MainActivity extends AppCompatActivity {
         if (mqttConnect) {
             return true;
         } else {
-            String sql = "delete from " + MQTT_TABLE;
-            db.execSQL(sql);
+//            String sql = "delete from " + MQTT_TABLE;
+//            db.execSQL(sql);
             return false;
         }
     }
@@ -613,6 +616,7 @@ public class MainActivity extends AppCompatActivity {
             mqttClient.disconnect();
             mqttConnectHandler.removeCallbacks(mqttConnectRunnable);
             mqttConnectHandler.removeCallbacks(wifiRssiRunnable);
+            mqttConnectHandler.removeCallbacks(mqttReConnectRunnable);
         } catch (MqttException e) {
             Log.e(TAG, e.getMessage(), e);
         }
@@ -648,6 +652,30 @@ public class MainActivity extends AppCompatActivity {
             } finally {
                 Log.d(TAG, "监测是否断连， 当前isConnected：" + connected);
                 mqttConnectHandler.postDelayed(this, 10000); // 10秒监测一次是否断连
+            }
+        }
+    };
+
+    private Runnable mqttReConnectRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                String serverIp = mServerIpEditText.getText().toString().trim();
+                String username = mUsernameEditText.getText().toString().trim();
+                String password = mPasswordEditText.getText().toString().trim();
+                if (serverIp.contains(":")) {
+                    serverIp = "tcp://" + serverIp;
+                } else {
+                    serverIp = "tcp://" + serverIp + ":1883";
+                }
+                boolean mqttConnect = mqtt(serverIp, username, password);
+                if (mqttConnect) {
+                    connectSuccess();
+                } else {
+                    mqttConnectHandler.postDelayed(this, 5); // 5s重连一次
+                }
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage(), e);
             }
         }
     };
