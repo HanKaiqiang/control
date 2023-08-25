@@ -216,6 +216,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void connectSuccess () {
+        mqttConnectHandler.removeCallbacks(mqttReConnectRunnable);
         setContentView(R.layout.activity_main);
         progressBar = findViewById(R.id.progress);
         progressBar.setProgress(progress);
