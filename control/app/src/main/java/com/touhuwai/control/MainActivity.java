@@ -44,6 +44,8 @@ import androidx.core.content.ContextCompat;
 import com.touhuwai.control.db.DbHelper;
 import com.touhuwai.control.entry.Event;
 import com.touhuwai.control.entry.ServerDto;
+import com.touhuwai.control.entry.Topic;
+import com.touhuwai.control.utils.BroadcastUtils;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
 import com.touhuwai.control.utils.RandomNumberUtil;
@@ -80,51 +82,21 @@ public class MainActivity extends AppCompatActivity {
     private SQLiteDatabase db;
     private HiAdvBox hi_adv_box;
     private MqttAsyncClient mqttClient;
-    private MqttClientPersistence persistence = new MemoryPersistence();
-    public static final String TOPIC = "touhuwai/player/", TOPIC_DEFAULT = "touhuwai/player/default/";
+    private final MqttClientPersistence persistence = new MemoryPersistence();
     private String fileDir, deviceId, defaultFileDir;
     private EditText mServerIpEditText, mUsernameEditText, mPasswordEditText;
-    private Button mConnectButton;
     private static final int REQUEST_READ_PHONE_STATE = 1;
     private static final int DEFAULT_RETRY_COUNT = 3;
 
-    private static int DELAY_TIME = 1000; // 每秒检测是否需要播垫播素材
-    private int mTimeRemaining;
+    private static final int DELAY_TIME = 1000; // 每秒检测是否需要播垫播素材
+    private int defaultPlayDifferenceTime;
     private ProgressBar progressBar;
     private boolean isPlayDefault = true;
-    private int qos = 0;
+    private final int qos = 0;
 
     private TextView wifiTextView;
 
     private Server mServer;
-    private Handler mTimerHandler = new Handler();
-    private Runnable mTimerRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (mTimeRemaining == 0) {
-                List<HiAdvItem> dataList = new ArrayList<>();
-                Cursor cursor = db.rawQuery(SELECT_DEFAULT_TABLE_SQL + " and occupy = 1 ", null);
-                int count = cursor.getCount();
-                if (count != 0) {
-                    cursor.moveToFirst();  //移动到首位
-                    for (int i = 0; i < cursor.getCount(); i++) {
-                        String url = cursor.getString(1);
-                        String filePath = cursor.getString(2);
-                        String type = cursor.getString(3);
-                        Integer duration = cursor.getInt(4);
-                        dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, url, String.valueOf(filePath)));
-                        //移动到下一位
-                        cursor.moveToNext();
-                    }
-                }
-                isPlayDefault = true;
-                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
-            } else {
-                mTimeRemaining --;
-                mTimerHandler.postDelayed(this, DELAY_TIME);
-            }
-        }
-    };
 
     private void requestPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED
@@ -174,7 +146,7 @@ public class MainActivity extends AppCompatActivity {
             mServerIpEditText = findViewById(R.id.server_ip);
             mUsernameEditText = findViewById(R.id.username);
             mPasswordEditText = findViewById(R.id.password);
-            mConnectButton = findViewById(R.id.connect);
+            Button mConnectButton = findViewById(R.id.connect);
             ServerDto serverInfo = getServerInfo();
             if (serverInfo != null) {
                 mServerIpEditText.setText(serverInfo.url.replace("tcp://", "").replace(":1883", ""));
@@ -242,8 +214,9 @@ public class MainActivity extends AppCompatActivity {
                 public void connectComplete(boolean reconnect, String serverURI) {
                     try {
                         String randomString = RandomNumberUtil.getRandomString(10);
-                        mqttClient.subscribe(TOPIC + randomString + deviceId, qos).waitForCompletion();
-                        mqttClient.subscribe(TOPIC_DEFAULT + randomString + deviceId, qos).waitForCompletion();
+                        for (String topic : Topic.TOPIC_ARRAY) {
+                            mqttClient.subscribe(topic + randomString + deviceId, qos).waitForCompletion();
+                        }
                     } catch (MqttException e) {
                         Log.e("MainActivity", e.getMessage(), e);
                     }
@@ -259,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
                         arrived(topic, payload);
                     } catch (Exception e) {
                         Log.e("MainActivity", e.getMessage(), e);
-                        publish(TOPIC + "error", e.getMessage().getBytes(StandardCharsets.UTF_8));
+                        publish(Topic.PLAYER + "error", e.getMessage().getBytes(StandardCharsets.UTF_8));
                     }
                 }
                 @Override
@@ -279,40 +252,49 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void arrived (String topic, String payload) throws Exception {
-        List<HiAdvItem> dataList = new ArrayList<>();
-        if (payload == null || "".equals(payload)) {
-//                            dataList.add(new Advance(R.drawable.img, 0));
-        } else {
+        if (!(payload == null || "".equals(payload))) {
             long currentTimeMillis = System.currentTimeMillis();
             lastMessageTime = currentTimeMillis;
             JSONObject jsonObject = new JSONObject(payload);
             if (topic == null) {
                 topic = jsonObject.getString("topic");
             }
-            JSONArray playList = jsonObject.getJSONArray("playList");
-            boolean type = jsonObject.isNull("type");
-            if (topic.startsWith(TOPIC_DEFAULT) || (!type && "default".equals(jsonObject.getString("type")))) {
-                // 垫播列表，收到消息后先下载至本地，后续由监听器切换
-                List<HiAdvItem> hiAdvItems = messageToAdvance(playList, true, currentTimeMillis);
-                if (isPlayDefault) {
-                    MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(hiAdvItems));
-                }
-                return;
+            if (topic.startsWith(Topic.WAKEUP)) {
+                BroadcastUtils.wakeup(this.getApplicationContext());
+            } else if (topic.startsWith(Topic.SLEEP)) {
+                BroadcastUtils.sleep(this.getApplicationContext());
+            } else if (topic.startsWith(Topic.REBOOT)) {
+                BroadcastUtils.reboot(this.getApplicationContext());
+            } else if (topic.startsWith(Topic.SHUTDOWN)) {
+                BroadcastUtils.shutdown(this.getApplicationContext());
+            } else if (topic.startsWith(Topic.POWER_ON_ALARM)) {
+                BroadcastUtils.powerOnAlarm();
+            } else if (topic.startsWith(Topic.POWER_OFF_ALARM)) {
+                BroadcastUtils.powerOffAlarm();
             } else {
-                dataList = messageToAdvance(playList, false, currentTimeMillis);
-                if (!jsonObject.isNull("totalDuration")) {
-                    int totalDuration = jsonObject.getInt("totalDuration");
-                    mTimeRemaining = totalDuration;
-                    mTimerHandler.removeCallbacks(mTimerRunnable);
-                    mTimerHandler.postDelayed(mTimerRunnable, DELAY_TIME);
+                JSONArray playList = jsonObject.getJSONArray("playList");
+                boolean type = jsonObject.isNull("type");
+                if (topic.startsWith(Topic.PLAYER_DEFAULT) || (!type && "default".equals(jsonObject.getString("type")))) {
+                    // 垫播列表，收到消息后先下载至本地，后续由监听器切换
+                    List<HiAdvItem> hiAdvItems = messageToAdvance(playList, true, currentTimeMillis);
+                    if (isPlayDefault) {
+                        MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(hiAdvItems));
+                    }
+                } else {
+                    List<HiAdvItem> dataList = messageToAdvance(playList, false, currentTimeMillis);
+                    if (!jsonObject.isNull("totalDuration")) {
+                        int totalDuration = jsonObject.getInt("totalDuration");
+                        defaultPlayDifferenceTime = totalDuration;
+                        defaultPlayHandler.removeCallbacks(defaultPlayRunnable);
+                        defaultPlayHandler.postDelayed(defaultPlayRunnable, DELAY_TIME);
+                    }
+                    if (currentTimeMillis == lastMessageTime) {
+                        progressBar.setVisibility(View.INVISIBLE);
+                        hi_adv_box.progress = progress;
+                        isPlayDefault = false;
+                        MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
+                    }
                 }
-            }
-            List<HiAdvItem> finalDataList = dataList;
-            if (currentTimeMillis == lastMessageTime) {
-                progressBar.setVisibility(View.INVISIBLE);
-                hi_adv_box.progress = progress;
-                isPlayDefault = false;
-                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(finalDataList));
             }
         }
     }
@@ -638,8 +620,36 @@ public class MainActivity extends AppCompatActivity {
         return activeNetwork != null && activeNetwork.isConnected();
     }
 
-    private Handler mqttConnectHandler = new Handler();
-    private Runnable mqttConnectRunnable = new Runnable() {
+    private final Handler defaultPlayHandler = new Handler();
+    private final Runnable defaultPlayRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (defaultPlayDifferenceTime == 0) {
+                List<HiAdvItem> dataList = new ArrayList<>();
+                Cursor cursor = db.rawQuery(SELECT_DEFAULT_TABLE_SQL + " and occupy = 1 ", null);
+                int count = cursor.getCount();
+                if (count != 0) {
+                    cursor.moveToFirst();  //移动到首位
+                    for (int i = 0; i < cursor.getCount(); i++) {
+                        String url = cursor.getString(1);
+                        String filePath = cursor.getString(2);
+                        String type = cursor.getString(3);
+                        Integer duration = cursor.getInt(4);
+                        dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, url, String.valueOf(filePath)));
+                        //移动到下一位
+                        cursor.moveToNext();
+                    }
+                }
+                isPlayDefault = true;
+                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
+            } else {
+                defaultPlayDifferenceTime --;
+                defaultPlayHandler.postDelayed(this, DELAY_TIME);
+            }
+        }
+    };
+    private final Handler mqttConnectHandler = new Handler();
+    private final Runnable mqttConnectRunnable = new Runnable() {
         @Override
         public void run() {
             Boolean connected = null;
@@ -656,8 +666,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     };
-
-    private Runnable mqttReConnectRunnable = new Runnable() {
+    private final Runnable mqttReConnectRunnable = new Runnable() {
         @Override
         public void run() {
             try {
