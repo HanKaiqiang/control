@@ -125,6 +125,10 @@ public class DbHelper extends SQLiteOpenHelper  {
         }
         return fileDtoList;
     }
+    public static void deleteServerInfo (SQLiteDatabase db) {
+        String sql = "delete from " + MQTT_TABLE;
+        db.execSQL(sql);
+    }
 
 }
 

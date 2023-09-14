@@ -171,6 +171,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 boolean mqttConnect = mqtt(serverIp, username, password);
                 if (mqttConnect) {
+                    DbHelper.deleteServerInfo(db);
                     ContentValues cValue = new ContentValues();
                     cValue.put("server_ip", serverIp);
                     cValue.put("username", username);
@@ -259,18 +260,12 @@ public class MainActivity extends AppCompatActivity {
             if (topic == null) {
                 topic = jsonObject.getString("topic");
             }
-            if (topic.startsWith(Topic.WAKEUP)) {
-                BroadcastUtils.wakeup(this.getApplicationContext());
-            } else if (topic.startsWith(Topic.SLEEP)) {
-                BroadcastUtils.sleep(this.getApplicationContext());
-            } else if (topic.startsWith(Topic.REBOOT)) {
-                BroadcastUtils.reboot(this.getApplicationContext());
-            } else if (topic.startsWith(Topic.SHUTDOWN)) {
+             if (topic.startsWith(Topic.SHUTDOWN)) {
                 BroadcastUtils.shutdown(this.getApplicationContext());
             } else if (topic.startsWith(Topic.POWER_ON_ALARM)) {
-                BroadcastUtils.powerOnAlarm();
-            } else if (topic.startsWith(Topic.POWER_OFF_ALARM)) {
-                BroadcastUtils.powerOffAlarm();
+                 String startAtTime = jsonObject.getString("startTime");
+                 BroadcastUtils.setPowerOnAlarm(Long.parseLong(startAtTime));
+                 BroadcastUtils.shutdown(this.getApplicationContext());
             } else {
                 JSONArray playList = jsonObject.getJSONArray("playList");
                 boolean type = jsonObject.isNull("type");

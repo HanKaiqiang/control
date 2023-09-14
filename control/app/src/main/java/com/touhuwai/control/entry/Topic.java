@@ -17,5 +17,5 @@ public class Topic {
     public static final String POWER_OFF_ALARM = "touhuwai/player/powerOffAlarm/";
 
 
-    public static final String[] TOPIC_ARRAY = {PLAYER, PLAYER_DEFAULT, SLEEP, WAKEUP, REBOOT, SHUTDOWN, POWER_ON_ALARM, POWER_OFF_ALARM};
+    public static final String[] TOPIC_ARRAY = {PLAYER, PLAYER_DEFAULT,/* SLEEP, WAKEUP, REBOOT, */SHUTDOWN, POWER_ON_ALARM/*, POWER_OFF_ALARM*/};
 }
