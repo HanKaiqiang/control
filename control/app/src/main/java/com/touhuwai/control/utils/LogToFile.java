@@ -8,12 +8,14 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.Executors;
 
 public class LogToFile {
 
     private static String TAG = "LogToFile";
     private static SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
-    private static String logName = format.format(new Date()) + ".log";
+    private static String today = format.format(new Date());
+    private static String logName = today + ".log";
     private static String filePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/logs/" + logName;
 
     public static void createLogFile(Context context) {
@@ -28,6 +30,7 @@ public class LogToFile {
             if (!logFile.exists()) {
                 logFile.createNewFile();
             }
+            Executors.newSingleThreadExecutor().execute(() -> deleteFilesInFolder(dir));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -41,6 +44,19 @@ public class LogToFile {
             e.printStackTrace();
         }
 
+    }
+    public static void deleteFilesInFolder(File folder) {
+        if (folder != null && folder.isDirectory()) {
+            File[] files = folder.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    String fileDay = file.getName().replace(".log", "");
+                    if ((Integer.parseInt(today) - 7) > Integer.parseInt(fileDay)) {
+                        file.delete(); // 删除7天前日志文件
+                    }
+                }
+            }
+        }
     }
 
 }

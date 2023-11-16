@@ -48,6 +48,7 @@ import com.touhuwai.control.entry.Topic;
 import com.touhuwai.control.utils.BroadcastUtils;
 import com.touhuwai.control.utils.DeviceInfoUtil;
 import com.touhuwai.control.utils.FileUtils;
+import com.touhuwai.control.utils.LogToFile;
 import com.touhuwai.control.utils.RandomNumberUtil;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
@@ -111,8 +112,8 @@ public class MainActivity extends AppCompatActivity {
         fileDir = FileUtils.getFilePath(this.getApplicationContext(), "");
         defaultFileDir = FileUtils.getFilePath(this.getApplicationContext(), "default/");
         deviceId = DeviceInfoUtil.getDeviceId(this.getApplicationContext());
-//        LogToFile.createLogFile(this.getApplicationContext());
-//        LogToFile.writeLogToFile();
+        LogToFile.createLogFile(this.getApplicationContext());
+        LogToFile.writeLogToFile();
     }
 
     @Override
@@ -254,6 +255,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void arrived (String topic, String payload) throws Exception {
         if (!(payload == null || "".equals(payload))) {
+            Log.d(TAG, payload);
             long currentTimeMillis = System.currentTimeMillis();
             lastMessageTime = currentTimeMillis;
             JSONObject jsonObject = new JSONObject(payload);
