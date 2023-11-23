@@ -120,11 +120,10 @@ public class VideoFragment extends Fragment {
         @Override
         public void run() {
             try {
-                int rssi = DeviceInfoUtil.getRssi(getContext());
-                String text = "rssi:" + rssi;
+                String text = "rssi:" + DeviceInfoUtil.getRssi(getContext());
                 wifiTextView.setText(text);
             } finally {
-                wifiHandler.postDelayed(this, 5); // 10秒监测一次是否断连
+                wifiHandler.postDelayed(this, 1000);
             }
         }
     };
@@ -154,10 +153,10 @@ public class VideoFragment extends Fragment {
         String localResourceFilePath = mAdvItem.getLocalResourceFilePath();
         Log.i(TAG, "开始播放视频：" + localResourceFilePath);
         if (vv1 == null) {
-            Log.e(TAG, "videoView is null!");
+            Log.d(TAG, "videoView is null!");
         }
         if (!new File(localResourceFilePath).exists()) {
-            Log.e(TAG, "要播放的文件不存在" + localResourceFilePath);
+            Log.d(TAG, "要播放的文件不存在" + localResourceFilePath);
             startTime = new Date();
             endTime = startTime;
             mListener.onPlayAdvItemResult(false,
@@ -217,8 +216,7 @@ public class VideoFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         wifiTextView = getView().findViewById(R.id.wifi_text_view);
-        int rssi = DeviceInfoUtil.getRssi(getContext());
-        String text = "rssi:" + rssi;
+        String text = "rssi:" + DeviceInfoUtil.getRssi(getContext());
         wifiTextView.setText(text);
         wifiHandler.postDelayed(wifiRssiRunnable, 5); // 10秒监测一次是否断连
 

@@ -94,7 +94,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
 
     private void startWork() {
         if (mActivity == null) {
-            Log.e(TAG, "assign activity with init(), please!");
+            Log.d(TAG, "assign activity with init(), please!");
             return;
         }
         mVp2.setAdapter(null);
@@ -204,7 +204,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
         );
 
         if (fragment != null && fragment.isStop) {
-            Log.e(TAG, "节目切换 停止当前");
+            Log.d(TAG, "节目切换 停止当前");
             return;
         }
 

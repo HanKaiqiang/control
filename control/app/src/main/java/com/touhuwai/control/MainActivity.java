@@ -1,21 +1,10 @@
 package com.touhuwai.control;
 
-import static com.touhuwai.control.db.DbHelper.DEFAULT_TABLE;
-import static com.touhuwai.control.db.DbHelper.DELETE_DEFAULT_TABLE_SQL;
-import static com.touhuwai.control.db.DbHelper.DELETE_FILE_TABLE_SQL;
-import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_ERROR;
 import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_SUCCESS;
 import static com.touhuwai.control.db.DbHelper.FILE_OCCUPY;
 import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
-import static com.touhuwai.control.db.DbHelper.SELECT_FILE_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
-import static com.touhuwai.control.db.DbHelper.UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL;
-import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_OCCUPIED_SQL;
-import static com.touhuwai.control.db.DbHelper.UPDATE_FILE_UNOCCUPIED_SQL;
-import static com.touhuwai.control.utils.FileUtils.DEFAULT_DURATION;
-import static com.touhuwai.control.utils.FileUtils.TYPE_GIF;
-import static com.touhuwai.control.utils.FileUtils.TYPE_IMAGE;
 import static com.touhuwai.control.utils.FileUtils.TYPE_MAP;
 
 import android.Manifest;
@@ -30,7 +19,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.KeyEvent;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -41,15 +29,20 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.liulishuo.okdownload.DownloadTask;
 import com.touhuwai.control.db.DbHelper;
 import com.touhuwai.control.entry.Event;
+import com.touhuwai.control.entry.FileDto;
 import com.touhuwai.control.entry.ServerDto;
 import com.touhuwai.control.entry.Topic;
 import com.touhuwai.control.utils.BroadcastUtils;
 import com.touhuwai.control.utils.DeviceInfoUtil;
+import com.touhuwai.control.utils.FileDownloader;
 import com.touhuwai.control.utils.FileUtils;
+import com.touhuwai.control.utils.JsonUtils;
 import com.touhuwai.control.utils.LogToFile;
 import com.touhuwai.control.utils.RandomNumberUtil;
+import com.touhuwai.control.utils.ThreadUtils;
 import com.touhuwai.hiadvbox.HiAdvBox;
 import com.touhuwai.hiadvbox.HiAdvItem;
 import com.yanzhenjie.andserver.AndServer;
@@ -69,7 +62,6 @@ import org.greenrobot.eventbus.ThreadMode;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -87,7 +79,6 @@ public class MainActivity extends AppCompatActivity {
     private String fileDir, deviceId, defaultFileDir;
     private EditText mServerIpEditText, mUsernameEditText, mPasswordEditText;
     private static final int REQUEST_READ_PHONE_STATE = 1;
-    private static final int DEFAULT_RETRY_COUNT = 3;
 
     private static final int DELAY_TIME = 1000; // 每秒检测是否需要播垫播素材
     private int defaultPlayDifferenceTime;
@@ -98,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView wifiTextView;
 
     private Server mServer;
+    private final FileDownloader fileDownloader = new FileDownloader();
 
     private void requestPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED
@@ -272,25 +264,9 @@ public class MainActivity extends AppCompatActivity {
                 JSONArray playList = jsonObject.getJSONArray("playList");
                 boolean type = jsonObject.isNull("type");
                 if (topic.startsWith(Topic.PLAYER_DEFAULT) || (!type && "default".equals(jsonObject.getString("type")))) {
-                    // 垫播列表，收到消息后先下载至本地，后续由监听器切换
-                    List<HiAdvItem> hiAdvItems = messageToAdvance(playList, true, currentTimeMillis);
-                    if (isPlayDefault) {
-                        MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(hiAdvItems));
-                    }
+                    handlerDefaultPlayMessage(playList, currentTimeMillis);
                 } else {
-                    List<HiAdvItem> dataList = messageToAdvance(playList, false, currentTimeMillis);
-                    if (!jsonObject.isNull("totalDuration")) {
-                        int totalDuration = jsonObject.getInt("totalDuration");
-                        defaultPlayDifferenceTime = totalDuration;
-                        defaultPlayHandler.removeCallbacks(defaultPlayRunnable);
-                        defaultPlayHandler.postDelayed(defaultPlayRunnable, DELAY_TIME);
-                    }
-                    if (currentTimeMillis == lastMessageTime) {
-                        progressBar.setVisibility(View.INVISIBLE);
-                        hi_adv_box.progress = progress;
-                        isPlayDefault = false;
-                        MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
-                    }
+                    handlerMessage(playList, currentTimeMillis, jsonObject);
                 }
             }
         }
@@ -345,186 +321,167 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private List<HiAdvItem> messageToAdvance (JSONArray playList, boolean isDefaultPlay, long currentTimeMillis) throws Exception {
-        List<HiAdvItem> dataList = new ArrayList<>();
-        List<Object> currentPlayList = new ArrayList<>();
-        List<HiAdvItem> defaultList = new ArrayList<>();
+    private void handlerDefaultPlayMessage (JSONArray playList, long currentTimeMillis) throws Exception {
+        Map<String, JSONObject> playListMap = new HashMap<>();
+        Map<String, FileDto> fileCache = new HashMap<>();
+        List<Object> playIds = new ArrayList<>();
+        JSONArray unDownPlayList = new JSONArray();
+        Map<String, HiAdvItem> hiAdvItemMap = new HashMap<>();
+
+        // 1. 遍历消息内容，获取已下载消息文件
         for (int i = 0; i < playList.length(); i++) {
-            Double v = (i+ 1) * 1.0 / playList.length() * 100;
-            progress = v.intValue();
-            progressBar.setProgress(progress);
-            hi_adv_box.progress = progress;
-            if (currentTimeMillis < lastMessageTime && !isDefaultPlay) {
-                // 接收到新消息，前置消息不再下载
-                return dataList;
-            }
             JSONObject item = playList.getJSONObject(i);
             String fileUrl = item.getString("url");
-            String type = item.getString("type");
-            Integer duration = null;
-            if (item.isNull("duration")) {
-                if (TYPE_IMAGE.equals(type)) { // 图片播放时长为空时，设置默认时长5S
-                    duration = DEFAULT_DURATION;
-                }
+            FileDto fileDto = DbHelper.queryDefaultByUrl(db, fileUrl);
+            if (fileDto != null) {
+                fileCache.put(fileUrl, fileDto);
+                playIds.add(fileDto.id);
+                hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileDto.path));
             } else {
-                duration = item.getInt("duration");
+                unDownPlayList.put(item);
             }
-            if (isDefaultPlay) {
-                HiAdvItem hiAdvItem = downDefaultPlay(fileUrl, type, duration, i == 0);
-                defaultList.add(hiAdvItem);
-                continue;
-            }
-            Object filePath;
-            if (TYPE_GIF.equals(type)) {
-                filePath = fileUrl;
-            } else {
-                Map<String, Object> fileInfo = queryFilePath(fileUrl, false, DEFAULT_RETRY_COUNT);
-                filePath = fileInfo.get("filePath");
-                Object id = fileInfo.get("id");
-                if (id != null) {
-                    currentPlayList.add(id);
-                }
-                if (filePath instanceof Integer) {
-                    type = TYPE_IMAGE;
-                }
-            }
+            playListMap.put(fileUrl, item);
+        }
 
-            // todo error文件
-            dataList.add(new HiAdvItem(TYPE_MAP.get(type), duration, fileUrl, String.valueOf(filePath)));
-        }
-        if (!isDefaultPlay && !currentPlayList.isEmpty()) {
-            StringBuilder where = new StringBuilder(" in (");
-            for (int i = 0; i < currentPlayList.size(); i++) {
-                Object id = currentPlayList.get(i);
-                where.append(id);
-                if (i != currentPlayList.size() -1) {
-                    where.append(", ");
-                }
-            }
-            where.append(") ");
-            db.execSQL(UPDATE_FILE_UNOCCUPIED_SQL + "and id not" + where);
-            db.execSQL(UPDATE_FILE_OCCUPIED_SQL + "and id " + where);
-        }
-        if (isDefaultPlay) {
-         return defaultList;
-        }
-        return dataList;
-    }
+        fileDownloader.stopDefaultDownloads(unDownPlayList);
 
-    private HiAdvItem downDefaultPlay (String fileUrl, String type, Integer duration, boolean isDelete) {
-        Cursor cursor = db.rawQuery(SELECT_DEFAULT_TABLE_SQL,null);
-        int count = cursor.getCount();
-        if (count != 0 && isDelete) { // 删除现有垫播信息
-            cursor.moveToFirst();  //移动到首位
-            for (int i = 0; i < cursor.getCount(); i++) {
-                String path = cursor.getString(2);
-                int occupy = cursor.getInt(6);
-                int id = cursor.getInt(0);
-                if (occupy != FILE_OCCUPY) {
-                    if (path != null) {
-                        FileUtils.deleteTempFile(new File(path), DEFAULT_RETRY_COUNT);
+        // 2. 将未下载文件消息放入下载队列
+        List<DownloadTask> endTask = new ArrayList<>();
+        fileDownloader.downloadFiles(true, unDownPlayList, defaultFileDir, (task, success) -> {
+            // 任务结束监听中构建播放所需内容， 记录已结束下载任务个数
+            endTask.add(task);
+            String fileUrl = task.getUrl();
+            if (success) {
+                String filePath = task.getFile().getPath();
+                JSONObject item = playListMap.get(fileUrl);
+                String type = JsonUtils.getString(item, "type");
+                HiAdvItem hiAdvItem = HiAdvItem.build(item, filePath);
+                long id = DbHelper.insertDefaultFile(db, fileUrl, filePath, type, hiAdvItem.getResourceDuration(), FILE_OCCUPY, FILE_DOWN_STATUS_SUCCESS);
+                playIds.add(id);
+                hiAdvItemMap.put(fileUrl, hiAdvItem);
+            }
+            Log.d(TAG, "下载垫播文件结束：" + fileUrl + "  endTask.size() " + endTask.size() + "   fileCache.size() " + fileCache.size() + "   playList.length() " + playList.length());
+        });
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            // 3. 异步轮询消息内容是否下载完毕
+            while (true) {
+                if (currentTimeMillis < lastMessageTime) {
+                    break;
+                }
+                int currentProgress = endTask.size() + fileCache.size();
+                setProgress(currentProgress, playList.length());
+                if (currentProgress == playList.length()) {
+                    List<HiAdvItem> dataList = new ArrayList<>();
+                    for (int i = 0; i < playList.length(); i++) {
+                        JSONObject item = JsonUtils.getJSONObject(playList, i);
+                        if (item != null) {
+                            String fileUrl = JsonUtils.getString(item, "url");
+                            HiAdvItem hiAdvItem = hiAdvItemMap.get(fileUrl);
+                            if (hiAdvItem != null) {
+                                dataList.add(hiAdvItem);
+                            }
+                        }
                     }
+                    DbHelper.updateDefaultOccupyFile(db, playIds);
+                    if (isPlayDefault) {
+                        MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
+                    }
+                    break;
                 } else {
-                    db.execSQL(UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL + " and id = " + id); // 更新为未占用
+                    ThreadUtils.sleep(1000);
                 }
-                //移动到下一位
-                cursor.moveToNext();
             }
-            db.execSQL(DELETE_DEFAULT_TABLE_SQL);
-        }
-        ContentValues cValue = new ContentValues();
-        cValue.put("url", fileUrl);
-        String path = null;
-        try {
-            String fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
-            String filePath = defaultFileDir + fileName;
-            if (!new File(filePath).exists()) {
-                path = FileUtils.downFile(fileUrl, defaultFileDir, db);
-            } else {
-                path = filePath;
-            }
-            cValue.put("path", path);
-            cValue.put("type", type);
-            cValue.put("duration", duration);
-            cValue.put("occupy", FILE_OCCUPY);
-            cValue.put("status", FILE_DOWN_STATUS_SUCCESS);
-        } catch (Exception e) {
-            cValue.put("status", FILE_DOWN_STATUS_ERROR);
-            Log.e("MainActivity", e.getMessage(), e);
-        } finally {
-            String sql = SELECT_DEFAULT_TABLE_SQL + " and url = '" + fileUrl + "'";
-            Cursor queryFromDb = db.rawQuery(sql,null);
-            if (queryFromDb.getCount() > 0) {
-                queryFromDb.moveToFirst();
-                db.update(DEFAULT_TABLE, cValue, "id=?", new String[]{String.valueOf(queryFromDb.getInt(0))});
-            } else {
-                db.insert(DEFAULT_TABLE, null, cValue);
-            }
-            Log.e("FileUtils", fileUrl + "文件下载结束");
-            return new HiAdvItem(TYPE_MAP.get(type), duration, fileUrl, String.valueOf(path));
-        }
-
+        });
     }
 
+    private void handlerMessage (JSONArray playList, long currentTimeMillis, JSONObject message) throws Exception {
+        Map<String, JSONObject> playListMap = new HashMap<>();
+        Map<String, FileDto> fileCache = new HashMap<>();
+        List<Object> currentPlayIds = new ArrayList<>();
+        JSONArray unDownPlayList = new JSONArray();
+        Map<String, HiAdvItem> hiAdvItemMap = new HashMap<>();
 
-    private Map<String, Object> queryFilePath (String imageUrl, boolean isForceDown, int retryCount) {
-        Integer img = null;
-        Map<String, Object> fileInfo = new HashMap<>();
-        Object filePath = img;
-        Object id = null;
-        try {
-            String sql = SELECT_FILE_TABLE_SQL + " and url = '" + imageUrl + "'";
-            Cursor cursor = db.rawQuery(sql,null);
-            if (cursor.getCount() != 0 && !isForceDown) { // 数据库中查询到数据, 使用缓存
-                Map<String, Object> result = _path(cursor, retryCount);
-                id = result.get("id");
-                filePath = result.get("filePath");
-                Object status = result.get("status");
-                if (status  == FILE_DOWN_STATUS_ERROR) {
-                    db.execSQL(DELETE_FILE_TABLE_SQL + " and id = " + id);
-                   return queryFilePath(imageUrl, true, retryCount);
+        // 1. 遍历消息内容，获取已下载消息文件
+        for (int i = 0; i < playList.length(); i++) {
+            JSONObject item = playList.getJSONObject(i);
+            String fileUrl = item.getString("url");
+            FileDto fileDto = DbHelper.queryByUrl(db, fileUrl);
+            if (fileDto != null) {
+                fileCache.put(fileUrl, fileDto);
+                currentPlayIds.add(fileDto.id);
+                hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileDto.path));
+            } else {
+                unDownPlayList.put(item);
+            }
+            playListMap.put(fileUrl, item);
+        }
+
+        fileDownloader.stopDownloads(unDownPlayList); // 删除前一次正在进行的任务
+        // 2. 将未下载文件消息放入下载队列
+        List<DownloadTask> endTask = new ArrayList<>();
+        fileDownloader.downloadFiles(false, unDownPlayList, fileDir, (task, success) -> {
+            // 任务结束监听中构建播放所需内容， 记录已结束下载任务个数
+            endTask.add(task);
+            String fileUrl = task.getUrl();
+            if (success) {
+                String filePath = task.getFile().getPath();
+                JSONObject item = playListMap.get(fileUrl);
+                long id = DbHelper.insertFile(db, fileUrl, FILE_OCCUPY, filePath, FILE_DOWN_STATUS_SUCCESS);
+                currentPlayIds.add(id);
+                hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, filePath));
+            }
+            Log.d(TAG, "下载播放列表文件结束：" + fileUrl +"  endTask.size() " + endTask.size() + "   fileCache.size() " + fileCache.size() + "   playList.length() " + playList.length());
+        });
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            // 3. 异步轮询消息内容是否下载完毕
+            while (true) {
+                if (currentTimeMillis < lastMessageTime) { break; }
+
+                int currentProgress = endTask.size() + fileCache.size();
+                setProgress(currentProgress, playList.length());
+                if (currentProgress == playList.length()) {
+                    if (!message.isNull("totalDuration")) {
+                        defaultPlayDifferenceTime = JsonUtils.getInt(message, "totalDuration");
+                        defaultPlayHandler.removeCallbacks(defaultPlayRunnable);
+                        defaultPlayHandler.postDelayed(defaultPlayRunnable, DELAY_TIME);
+                    }
+//                    progressBar.setVisibility(View.INVISIBLE);
+
+                    isPlayDefault = false;
+                    List<HiAdvItem> dataList = new ArrayList<>();
+                    for (int i = 0; i < playList.length(); i++) {
+                        JSONObject item = JsonUtils.getJSONObject(playList, i);
+                        if (item != null) {
+                            String fileUrl = JsonUtils.getString(item, "url");
+                            HiAdvItem hiAdvItem = hiAdvItemMap.get(fileUrl);
+                            if (hiAdvItem != null) {
+                                dataList.add(hiAdvItem);
+                            }
+                        }
+                    }
+                    MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
+                    DbHelper.updateOccupyFile(db, currentPlayIds);
+                    break;
+                } else {
+                    ThreadUtils.sleep(1000);
                 }
-            } else {
-                return FileUtils.downloadAndSaveFile(imageUrl, fileDir, db);
             }
-        } catch (Exception e) {
-            Log.e("MainActivity", e.getMessage(), e);
-        }
-        fileInfo.put("filePath", filePath);
-        fileInfo.put("id", id);
-        return fileInfo;
+        });
     }
 
-
-    private Map<String, Object> _path (Cursor dbFiles, int retryCount) {
-        dbFiles.moveToFirst();
-        Integer status = dbFiles.getInt(3);
-        String url = dbFiles.getString(1);
-        Object filePath = null;
-        if (status == FILE_DOWN_STATUS_SUCCESS) {
-            filePath = dbFiles.getString(2);
-        } else {
-            // 重试
-            if (retryCount > 0) {
-                retryCount--;
-                int finalRetryCount = retryCount;
-                Executors.newSingleThreadExecutor().execute(() -> queryFilePath(url, true, finalRetryCount));
-            }
-            filePath = null;
-        }
-        Integer id = dbFiles.getInt(0);
-        dbFiles.close();
-        Map<String, Object> result = new HashMap<>();
-        result.put("id", id);
-        result.put("filePath", filePath);
-        result.put("status", status);
-        return result;
+    private void setProgress (int index, int sum) {
+        double v = index * 1.0 / sum * 100;
+        progress = (int) v;
+        progressBar.setProgress(progress);
+        hi_adv_box.progress = progress;
     }
+
 
     private void wifiRssi() {
         wifiTextView = findViewById(R.id.wifi_text_view);
-        int rssi = DeviceInfoUtil.getRssi(getApplicationContext());
-        String text = "rssi:" + rssi;
+        String text = "rssi:" + DeviceInfoUtil.getRssi(getApplicationContext());
         wifiTextView.setText(text);
         mqttConnectHandler.postDelayed(wifiRssiRunnable, 5); // 10秒监测一次是否断连
     }
@@ -533,13 +490,12 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
             try {
                 wifiTextView = findViewById(R.id.wifi_text_view);
-                int rssi = DeviceInfoUtil.getRssi(getApplicationContext());
-                String text = "rssi:" + rssi;
+                String text = "rssi:" + DeviceInfoUtil.getRssi(getApplicationContext());
                 wifiTextView.setText(text);
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage(), e);
             } finally {
-                mqttConnectHandler.postDelayed(this, 5); // 10秒监测一次是否断连
+                mqttConnectHandler.postDelayed(this, 2000); // 10秒监测一次是否断连
             }
         }
     };
@@ -638,7 +594,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 isPlayDefault = true;
-                MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
+                if (dataList.size() > 0) {
+                    MainActivity.this.runOnUiThread(() -> hi_adv_box.restartWork(dataList));
+                } else {
+                    defaultPlayHandler.postDelayed(this, DELAY_TIME);
+                }
             } else {
                 defaultPlayDifferenceTime --;
                 defaultPlayHandler.postDelayed(this, DELAY_TIME);

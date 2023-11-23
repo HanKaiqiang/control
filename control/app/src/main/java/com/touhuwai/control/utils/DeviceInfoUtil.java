@@ -47,10 +47,10 @@ public class DeviceInfoUtil {
             return !TextUtils.isEmpty(imei) ? imei : androidId;
         }
     }
-    public static int getRssi (Context context) {
+    public static String getRssi (Context context) {
         WifiManager wifi_service = (WifiManager)context.getSystemService(WIFI_SERVICE);
         WifiInfo wifiInfo = wifi_service.getConnectionInfo();
-        return wifiInfo.getRssi();
+        return wifiInfo.getRssi() + " " + NetworkSpeedUtil.getNetworkSpeed();
     }
 
     public static String getDeviceIpAddress(Context context) {

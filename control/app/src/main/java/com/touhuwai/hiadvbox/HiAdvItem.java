@@ -1,5 +1,12 @@
 package com.touhuwai.hiadvbox;
 
+import static com.touhuwai.control.utils.FileUtils.DEFAULT_DURATION;
+import static com.touhuwai.control.utils.FileUtils.TYPE_IMAGE;
+import static com.touhuwai.control.utils.FileUtils.TYPE_MAP;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.UUID;
 
 public class HiAdvItem {
@@ -85,5 +92,24 @@ public class HiAdvItem {
                 ", resourceUrl='" + resourceUrl + '\'' +
                 ", localResourceFilePath='" + localResourceFilePath + '\'' +
                 '}';
+    }
+
+
+    public static HiAdvItem build(JSONObject item, String filePath) {
+        try {
+            String fileUrl = item.getString("url");
+            String type = item.getString("type");
+            Integer duration = null;
+            if (item.isNull("duration")) {
+                if (TYPE_IMAGE.equals(type)) { // 图片播放时长为空时，设置默认时长5S
+                    duration = DEFAULT_DURATION;
+                }
+            } else {
+                duration = item.getInt("duration");
+            }
+            return new HiAdvItem(TYPE_MAP.get(type), duration, fileUrl, filePath);
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

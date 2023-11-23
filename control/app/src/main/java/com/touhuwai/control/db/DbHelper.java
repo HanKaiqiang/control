@@ -1,19 +1,16 @@
 package com.touhuwai.control.db;
 
 
-import static com.touhuwai.control.utils.FileUtils.TYPE_MAP;
-
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 import com.touhuwai.control.entry.FileDto;
-import com.touhuwai.hiadvbox.HiAdvItem;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 
 public class DbHelper extends SQLiteOpenHelper  {
@@ -37,7 +34,8 @@ public class DbHelper extends SQLiteOpenHelper  {
 
     public static String DELETE_DEFAULT_TABLE_SQL = "delete from " + DEFAULT_TABLE + " where 1 = 1 and occupy = 0 ";
 
-    public static String UPDATE_DEFAULT_TABLE_NOCCUPIED_SQL = "update " + DEFAULT_TABLE + " set occupy = 0" + " where 1 = 1 ";
+    public static String UPDATE_DEFAULT_TABLE_UNOCCUPIED_SQL = "update " + DEFAULT_TABLE + " set occupy = 0" + " where 1 = 1 ";
+    public static String UPDATE_DEFAULT_TABLE_OCCUPIED_SQL = "update " + DEFAULT_TABLE + " set occupy = 1" + " where 1 = 1 ";
 
     public static Integer FILE_DOWN_STATUS_SUCCESS = 1; // 成功
     public static Integer FILE_DOWN_STATUS_ERROR = 0; // 失败
@@ -102,6 +100,29 @@ public class DbHelper extends SQLiteOpenHelper  {
         return fileDto;
     }
 
+    public static long insertFile (SQLiteDatabase db, String fileUrl, Integer occupy, String filePath, Integer status) {
+        ContentValues cValue = new ContentValues();
+        cValue.put("url", fileUrl);
+        cValue.put("occupy", occupy);
+        cValue.put("path", filePath);
+        cValue.put("status", status);
+        return db.insert(FILE_TABLE, null, cValue);
+    }
+
+    public static void updateOccupyFile (SQLiteDatabase db, List<Object> currentPlayList) {
+        StringBuilder where = new StringBuilder(" in (");
+        for (int i = 0; i < currentPlayList.size(); i++) {
+            Object id = currentPlayList.get(i);
+            where.append(id);
+            if (i != currentPlayList.size() - 1) {
+                where.append(", ");
+            }
+        }
+        where.append(") ");
+        db.execSQL(UPDATE_FILE_UNOCCUPIED_SQL + "and id not" + where);
+        db.execSQL(UPDATE_FILE_OCCUPIED_SQL + "and id " + where);
+    }
+
     public static List<FileDto> queryFileDtoList (SQLiteDatabase db) {
         return queryFileDtoListBySql(db, SELECT_FILE_TABLE_SQL);
     }
@@ -130,6 +151,47 @@ public class DbHelper extends SQLiteOpenHelper  {
         db.execSQL(sql);
     }
 
+
+    public static FileDto queryDefaultByUrl (SQLiteDatabase db, String url) {
+        String sql = SELECT_DEFAULT_TABLE_SQL + " and url = '" + url + "'";
+        Cursor cursor = db.rawQuery(sql,null);
+        FileDto fileDto = null;
+        if (cursor.getCount() != 0) {
+            cursor.moveToFirst();
+            fileDto = new FileDto();
+            fileDto.id = cursor.getInt(0);
+            fileDto.url = cursor.getString(1);
+            fileDto.path = cursor.getString(2);
+            fileDto.type = cursor.getString(3);
+            fileDto.duration = cursor.getInt(4);
+        }
+        return fileDto;
+    }
+
+    public static long insertDefaultFile (SQLiteDatabase db, String fileUrl, String path, String type, Integer duration, Integer occupy, Integer status) {
+        ContentValues cValue = new ContentValues();
+        cValue.put("url", fileUrl);
+        cValue.put("path", path);
+        cValue.put("type", type);
+        cValue.put("duration", duration);
+        cValue.put("occupy", occupy);
+        cValue.put("status", status);
+        return db.insert(DEFAULT_TABLE, null, cValue);
+    }
+
+    public static void updateDefaultOccupyFile (SQLiteDatabase db, List<Object> currentPlayList) {
+        StringBuilder where = new StringBuilder(" in (");
+        for (int i = 0; i < currentPlayList.size(); i++) {
+            Object id = currentPlayList.get(i);
+            where.append(id);
+            if (i != currentPlayList.size() - 1) {
+                where.append(", ");
+            }
+        }
+        where.append(") ");
+        db.execSQL(UPDATE_DEFAULT_TABLE_UNOCCUPIED_SQL + "and id not" + where);
+        db.execSQL(UPDATE_DEFAULT_TABLE_OCCUPIED_SQL + "and id " + where);
+    }
 }
 
 

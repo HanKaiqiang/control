@@ -32,8 +32,7 @@ public class BlankFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         wifiTextView = getView().findViewById(R.id.wifi_text_view);
-        int rssi = DeviceInfoUtil.getRssi(getContext());
-        String text = "rssi:" + rssi;
+        String text = "rssi:" + DeviceInfoUtil.getRssi(getContext());
         wifiTextView.setText(text);
         wifiHandler.postDelayed(wifiRssiRunnable, 5); // 10秒监测一次是否断连
     }
@@ -42,11 +41,10 @@ public class BlankFragment extends Fragment {
         @Override
         public void run() {
             try {
-                int rssi = DeviceInfoUtil.getRssi(getContext());
-                String text = "rssi:" + rssi;
+                String text = "rssi:" + DeviceInfoUtil.getRssi(getContext());
                 wifiTextView.setText(text);
             } finally {
-                wifiHandler.postDelayed(this, 5); // 10秒监测一次是否断连
+                wifiHandler.postDelayed(this, 1000);
             }
         }
     };

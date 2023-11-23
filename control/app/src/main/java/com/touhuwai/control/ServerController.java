@@ -23,7 +23,7 @@ public class ServerController {
     public String publish(HttpRequest request, @RequestBody String jsonStr) {
         String appKey = request.getHeader("appKey");
         if ("touhuwai".equals(appKey)) {
-            Log.e("ServerController", jsonStr);
+            Log.d("ServerController", jsonStr);
             Event event = new Event(200, jsonStr);
             EventBus.getDefault().post(event);
             return "请求成功！";

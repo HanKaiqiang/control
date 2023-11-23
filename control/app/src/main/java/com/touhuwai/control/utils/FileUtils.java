@@ -88,7 +88,7 @@ public class FileUtils {
 
     public static String downFileWithPath(String fileUrl, String filePath, SQLiteDatabase db) throws Exception {
         URL url = new URL(fileUrl);
-        Log.e("FileUtils", fileUrl + "文件下载开始");
+        Log.d("FileUtils", fileUrl + "文件下载开始");
         BufferedInputStream in = new BufferedInputStream(url.openStream());
         FileOutputStream out = new FileOutputStream(filePath);
         byte[] outputByte = new byte[3 * 1024 * 1024];
@@ -118,7 +118,7 @@ public class FileUtils {
             cValue.put("status", FILE_DOWN_STATUS_ERROR);
             Log.e("FileUtils", e.getMessage(), e);
         } finally {
-            Log.e("FileUtils", fileUrl + "文件下载结束");
+            Log.d("FileUtils", fileUrl + "文件下载结束");
             FileDto fileDto = DbHelper.queryByUrl(db, fileUrl);
             long id = 0;
             if (fileDto != null) {

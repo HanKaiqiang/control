@@ -66,10 +66,9 @@ public class ImageFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         wifiTextView = getView().findViewById(R.id.wifi_text_view);
-        int rssi = DeviceInfoUtil.getRssi(getContext());
-        String text = "rssi:" + rssi;
+        String text = "rssi:" + DeviceInfoUtil.getRssi(getContext());
         wifiTextView.setText(text);
-        wifiHandler.postDelayed(wifiRssiRunnable, 5); // 10秒监测一次是否断连
+        wifiHandler.postDelayed(wifiRssiRunnable, 5);
         String imageUrl = mAdvItem.getLocalResourceFilePath();
         if (imageUrl != null && !imageUrl.equals("null") && !imageUrl.isEmpty()) {
             BitmapFactory.Options options = new BitmapFactory.Options();
@@ -96,11 +95,10 @@ public class ImageFragment extends Fragment {
         @Override
         public void run() {
             try {
-                int rssi = DeviceInfoUtil.getRssi(getContext());
-                String text = "rssi:" + rssi;
+                String text = "rssi:" + DeviceInfoUtil.getRssi(getContext());
                 wifiTextView.setText(text);
             } finally {
-                wifiHandler.postDelayed(this, 5); // 10秒监测一次是否断连
+                wifiHandler.postDelayed(this, 1000);
             }
         }
     };
@@ -134,14 +132,14 @@ public class ImageFragment extends Fragment {
                 //int countSec = 0;
                 for(int i=0; i<tDuration; i++) {
                     if (isStop) {
-                        Log.e(TAG, "节目切换 停止当前");
+                        Log.d(TAG, "节目切换 停止当前");
                         return;
                     }
                     countSec ++;
                     Thread.sleep(1000);//线程暂停10秒，单位毫秒
                 }
                 if (isStop) {
-                    Log.e(TAG, "节目切换 停止当前");
+                    Log.d(TAG, "节目切换 停止当前");
                     return;
                 }
                 Log.i(TAG, "结束播放图片" + mAdvItem.getResourceUrl());
