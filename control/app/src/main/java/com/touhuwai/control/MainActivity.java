@@ -37,7 +37,7 @@ import com.touhuwai.control.entry.ServerDto;
 import com.touhuwai.control.entry.Topic;
 import com.touhuwai.control.utils.BroadcastUtils;
 import com.touhuwai.control.utils.DeviceInfoUtil;
-import com.touhuwai.control.utils.FileDownloader;
+import com.touhuwai.control.utils.FileDownUtils;
 import com.touhuwai.control.utils.FileUtils;
 import com.touhuwai.control.utils.JsonUtils;
 import com.touhuwai.control.utils.LogToFile;
@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView wifiTextView;
 
     private Server mServer;
-    private final FileDownloader fileDownloader = new FileDownloader();
+    private final FileDownUtils fileDownUtils = new FileDownUtils();
 
     private void requestPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED
@@ -101,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
                             Manifest.permission.WRITE_EXTERNAL_STORAGE},
                     REQUEST_READ_PHONE_STATE);
         }
-        fileDir = FileUtils.getFilePath(this.getApplicationContext(), "");
+        fileDir = FileUtils.getFilePath(this.getApplicationContext(), "files/");
         defaultFileDir = FileUtils.getFilePath(this.getApplicationContext(), "default/");
         deviceId = DeviceInfoUtil.getDeviceId(this.getApplicationContext());
         LogToFile.createLogFile(this.getApplicationContext());
@@ -120,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_loading);
         showView(false);
         wifiRssi();
+        mqttConnectHandler.postDelayed(checkSdFreeRunnable, 20000);
     }
 
     private int progress = 0;
@@ -255,8 +256,10 @@ public class MainActivity extends AppCompatActivity {
                 topic = jsonObject.getString("topic");
             }
              if (topic.startsWith(Topic.SHUTDOWN)) {
+                 FileUtils.deleteDirectoryFiles(db, fileDir);
                 BroadcastUtils.shutdown(this.getApplicationContext());
             } else if (topic.startsWith(Topic.POWER_ON_ALARM)) {
+                 FileUtils.deleteDirectoryFiles(db, fileDir);
                  String startAtTime = jsonObject.getString("startTime");
                  BroadcastUtils.setPowerOnAlarm(Long.parseLong(startAtTime));
                  BroadcastUtils.shutdown(this.getApplicationContext());
@@ -343,11 +346,11 @@ public class MainActivity extends AppCompatActivity {
             playListMap.put(fileUrl, item);
         }
 
-        fileDownloader.stopDefaultDownloads(unDownPlayList);
+        fileDownUtils.stopDefaultDownloads(unDownPlayList);
 
         // 2. 将未下载文件消息放入下载队列
         List<DownloadTask> endTask = new ArrayList<>();
-        fileDownloader.downloadFiles(true, unDownPlayList, defaultFileDir, (task, success) -> {
+        fileDownUtils.downloadFiles(true, unDownPlayList, defaultFileDir, (task, success) -> {
             // 任务结束监听中构建播放所需内容， 记录已结束下载任务个数
             endTask.add(task);
             String fileUrl = task.getUrl();
@@ -417,10 +420,10 @@ public class MainActivity extends AppCompatActivity {
             playListMap.put(fileUrl, item);
         }
 
-        fileDownloader.stopDownloads(unDownPlayList); // 删除前一次正在进行的任务
+        fileDownUtils.stopDownloads(unDownPlayList); // 删除前一次正在进行的任务
         // 2. 将未下载文件消息放入下载队列
         List<DownloadTask> endTask = new ArrayList<>();
-        fileDownloader.downloadFiles(false, unDownPlayList, fileDir, (task, success) -> {
+        fileDownUtils.downloadFiles(false, unDownPlayList, fileDir, (task, success) -> {
             // 任务结束监听中构建播放所需内容， 记录已结束下载任务个数
             endTask.add(task);
             String fileUrl = task.getUrl();
@@ -430,6 +433,8 @@ public class MainActivity extends AppCompatActivity {
                 long id = DbHelper.insertFile(db, fileUrl, FILE_OCCUPY, filePath, FILE_DOWN_STATUS_SUCCESS);
                 currentPlayIds.add(id);
                 hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, filePath));
+            } else {
+                DbHelper.insertFailFile(db, fileUrl, task.getFile().getPath());
             }
             Log.d(TAG, "下载播放列表文件结束：" + fileUrl +"  endTask.size() " + endTask.size() + "   fileCache.size() " + fileCache.size() + "   playList.length() " + playList.length());
         });
@@ -553,6 +558,7 @@ public class MainActivity extends AppCompatActivity {
             mqttConnectHandler.removeCallbacks(mqttConnectRunnable);
             mqttConnectHandler.removeCallbacks(wifiRssiRunnable);
             mqttConnectHandler.removeCallbacks(mqttReConnectRunnable);
+            mqttConnectHandler.removeCallbacks(checkSdFreeRunnable);
         } catch (MqttException e) {
             Log.e(TAG, e.getMessage(), e);
         }
@@ -646,4 +652,13 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     };
+
+    private final Runnable checkSdFreeRunnable = new Runnable()  {
+        @Override
+        public void run() {
+            FileUtils.checkSdFree(db);
+            mqttConnectHandler.postDelayed(this, 60000 * 1);
+        }
+    };
+
 }

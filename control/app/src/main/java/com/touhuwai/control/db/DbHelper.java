@@ -16,6 +16,7 @@ import java.util.List;
 public class DbHelper extends SQLiteOpenHelper  {
 
     public static final String  FILE_TABLE = "files";
+    public static final String  FAIL_FILE_TABLE = "fail_files";
     public static final String  MQTT_TABLE = "mqtt";
 
     public static final String  DEFAULT_TABLE = "default_play";
@@ -51,6 +52,12 @@ public class DbHelper extends SQLiteOpenHelper  {
             + "occupy integer, " // 是否为当前播放列表内容 0 不是， 1是
             + "size text)";
 
+    public static final String CREATE_FAIL_FILES_TABLE = "create table IF NOT EXISTS fail_files ("
+            + "id integer primary key autoincrement, "
+            + "url text, "
+            + "path text"
+            + ")";
+
     public static final String CREATE_DEFAULT_TABLE = "create table IF NOT EXISTS default_play ("
             + "id integer primary key autoincrement, "
             + "url text, "
@@ -77,6 +84,7 @@ public class DbHelper extends SQLiteOpenHelper  {
         db.execSQL(CREATE_FILES_TABLE);
         db.execSQL(CREATE_MQTT_TABLE);
         db.execSQL(CREATE_DEFAULT_TABLE);
+        db.execSQL(CREATE_FAIL_FILES_TABLE);
     }
 
     @Override
@@ -84,8 +92,51 @@ public class DbHelper extends SQLiteOpenHelper  {
 
     }
 
+    public static List<FileDto> queryFailFiles (SQLiteDatabase db) {
+        String sql = "select * from " + FAIL_FILE_TABLE + " where 1 = 1 ";
+        Cursor cursor = db.rawQuery(sql,null);
+        List<FileDto> failFiles = new ArrayList<>();
+        if (cursor.getCount() != 0) {
+            cursor.moveToFirst();  //移动到首位
+            for (int i = 0; i < cursor.getCount(); i++) {
+                FileDto fileDto = new FileDto();
+                fileDto.id = cursor.getInt(0);
+                fileDto.url = cursor.getString(1);
+                fileDto.path = cursor.getString(2);
+                failFiles.add(fileDto);
+                //移动到下一位
+                cursor.moveToNext();
+            }
+        }
+        return failFiles;
+    }
+
+    public static long insertFailFile (SQLiteDatabase db, String fileUrl, String filePath) {
+        ContentValues cValue = new ContentValues();
+        cValue.put("url", fileUrl);
+        cValue.put("path", filePath);
+        return db.insert(FAIL_FILE_TABLE, null, cValue);
+    }
+
+
     public static FileDto queryByUrl (SQLiteDatabase db, String url) {
         String sql = SELECT_FILE_TABLE_SQL + " and url = '" + url + "'";
+        Cursor cursor = db.rawQuery(sql,null);
+        FileDto fileDto = null;
+        if (cursor.getCount() != 0) {
+            cursor.moveToFirst();
+            fileDto = new FileDto();
+            fileDto.id = cursor.getInt(0);
+            fileDto.url = cursor.getString(1);
+            fileDto.path = cursor.getString(2);
+            fileDto.status = cursor.getInt(3);
+            fileDto.occupy = cursor.getInt(4);
+        }
+        return fileDto;
+    }
+
+    public static FileDto queryByPath (SQLiteDatabase db, String path) {
+        String sql = SELECT_FILE_TABLE_SQL + " and path = '" + path + "'";
         Cursor cursor = db.rawQuery(sql,null);
         FileDto fileDto = null;
         if (cursor.getCount() != 0) {
@@ -123,8 +174,8 @@ public class DbHelper extends SQLiteOpenHelper  {
         db.execSQL(UPDATE_FILE_OCCUPIED_SQL + "and id " + where);
     }
 
-    public static List<FileDto> queryFileDtoList (SQLiteDatabase db) {
-        return queryFileDtoListBySql(db, SELECT_FILE_TABLE_SQL);
+    public static List<FileDto> queryUnoccupiedFileDtoList (SQLiteDatabase db) {
+        return queryFileDtoListBySql(db, SELECT_FILE_TABLE_SQL + " and occupy = 0 ");
     }
 
     public static List<FileDto> queryFileDtoListBySql (SQLiteDatabase db, String sql) {

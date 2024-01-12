@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class FileDownloader {
+public class FileDownUtils {
 
     String TAG = "FileDownloader";
     private List<DownloadTask> runningTasks = new ArrayList<>();
@@ -31,7 +31,7 @@ public class FileDownloader {
     private Map<String, DownloadTask> defaultRunningTaskMap = new HashMap<>();
 
 
-    public FileDownloader() {
+    public FileDownUtils() {
         DownloadDispatcher.setMaxParallelRunningCount(5);
 
     }

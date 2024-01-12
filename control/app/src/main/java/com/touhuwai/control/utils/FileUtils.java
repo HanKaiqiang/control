@@ -2,6 +2,7 @@ package com.touhuwai.control.utils;
 
 import static android.os.Environment.MEDIA_MOUNTED;
 import static com.touhuwai.control.db.DbHelper.DELETE_FILE_TABLE_SQL;
+import static com.touhuwai.control.db.DbHelper.FAIL_FILE_TABLE;
 import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_ERROR;
 import static com.touhuwai.control.db.DbHelper.FILE_DOWN_STATUS_SUCCESS;
 import static com.touhuwai.control.db.DbHelper.FILE_OCCUPY;
@@ -14,7 +15,6 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.util.Log;
 
-import com.touhuwai.control.FileCache;
 import com.touhuwai.control.db.DbHelper;
 import com.touhuwai.control.entry.FileDto;
 
@@ -24,10 +24,12 @@ import java.io.FileOutputStream;
 import java.net.URL;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -98,7 +100,6 @@ public class FileUtils {
         }
         out.close();
         in.close();
-        new Thread(new FileCache(db)).start();
         return filePath;
     }
 
@@ -138,7 +139,7 @@ public class FileUtils {
             try {
                 if (tempFile.exists() && tempFile.isFile()) {
                     if (tempFile.delete()) {
-                        Log.d("FileUtils", "删除文件【" + tempFile + "】成功！");
+//                        Log.d("FileUtils", "删除文件【" + tempFile + "】成功！");
                     } else {
                         Log.d("FileUtils", "删除文件【" + tempFile + "】失败！");
                         if (retryCount > 0) {
@@ -166,30 +167,21 @@ public class FileUtils {
     }
 
     public static void deleteFiles(SQLiteDatabase db) {
-        List<FileDto> fileDtoList = DbHelper.queryFileDtoList(db);
+        List<FileDto> fileDtoList = DbHelper.queryUnoccupiedFileDtoList(db);
         if (fileDtoList.size() > 0) {
             List<Integer> deletedIds = new ArrayList<>();
-            long bytesToDelete = Math.max(0, MIN_FREE_BYTES - bytesAvailable);
             for (int i = 0; i < fileDtoList.size(); i++) {
                 FileDto fileDto = fileDtoList.get(i);
-                int occupy = fileDto.occupy;
-                if (FILE_OCCUPY == occupy) {
-                    continue;
-                }
                 String path = fileDto.path;
                 if (path == null || "".equals(path)) {
-                    return;
+                    continue;
                 }
                 File file = new File(path);
                 if (!file.exists()) {
-                    return;
+                    continue;
                 }
-                bytesToDelete -= file.length();
-                if (bytesToDelete < 0) {
-                    break;
-                }
-                FileUtils.deleteTempFile(file, 3);
                 deletedIds.add(fileDto.id);
+                FileUtils.deleteTempFile(file, 1);
             }
             if (!deletedIds.isEmpty()) {
                 StringBuilder where = new StringBuilder(" and id in (");
@@ -204,16 +196,90 @@ public class FileUtils {
                 db.execSQL(DELETE_FILE_TABLE_SQL + where);
             }
         }
+
+        List<FileDto> fileDtos = DbHelper.queryFailFiles(db);
+        if (fileDtos.size() > 0) {
+            List<Integer> deletedIds = new ArrayList<>();
+            for (int i = 0; i < fileDtos.size(); i++) {
+                FileDto fileDto = fileDtos.get(i);
+                String path = fileDto.path;
+                if (path == null || "".equals(path)) {
+                    return;
+                }
+                File file = new File(path);
+                if (!file.exists()) {
+                    continue;
+                }
+                deletedIds.add(fileDto.id);
+                FileUtils.deleteTempFile(file, 1);
+            }
+            if (!deletedIds.isEmpty()) {
+                StringBuilder where = new StringBuilder(" and id in (");
+                for (int i = 0; i < deletedIds.size(); i++) {
+                    Integer deletedId = deletedIds.get(i);
+                    where.append(deletedId);
+                    if (i != deletedIds.size() -1) {
+                        where.append(", ");
+                    }
+                }
+                where.append(") ");
+                db.execSQL("delete from " + FAIL_FILE_TABLE + " where 1 = 1 " + where);
+            }
+        }
     }
 
-    private static StatFs statFs = new StatFs(Environment.getExternalStorageDirectory().getPath());
-    private static long bytesAvailable = (long)statFs.getBlockSize() * (long)statFs.getAvailableBlocks();
-    public static long MIN_FREE_BYTES =(long)(statFs.getTotalBytes() / (1.0/3.0));
 
     public static void checkSdFree (SQLiteDatabase db) {
+        StatFs statFs = new StatFs(Environment.getExternalStorageDirectory().getPath());
+        long MIN_FREE_BYTES =(long)(statFs.getTotalBytes() * (1.0/3.0));
         long availableSize = statFs.getAvailableBytes();
+        Log.d("FileUtils", "availableSize============================" + bytesToHuman(availableSize));
+        Log.d("FileUtils", "MIN_FREE_BYTES============================" + bytesToHuman(MIN_FREE_BYTES));
         if (availableSize < MIN_FREE_BYTES) {
             deleteFiles(db);
+        }
+    }
+
+    public static String floatForm (double d) {
+        return new DecimalFormat("#.##").format(d);
+    }
+
+    public static String bytesToHuman (long size) {
+        long Kb = 1  * 1024;
+        long Mb = Kb * 1024;
+        long Gb = Mb * 1024;
+        long Tb = Gb * 1024;
+        long Pb = Tb * 1024;
+        long Eb = Pb * 1024;
+
+        if (size <  Kb)                 return floatForm(        size     ) + " byte";
+        if (size >= Kb && size < Mb)    return floatForm((double)size / Kb) + " Kb";
+        if (size >= Mb && size < Gb)    return floatForm((double)size / Mb) + " Mb";
+        if (size >= Gb && size < Tb)    return floatForm((double)size / Gb) + " Gb";
+        if (size >= Tb && size < Pb)    return floatForm((double)size / Tb) + " Tb";
+        if (size >= Pb && size < Eb)    return floatForm((double)size / Pb) + " Pb";
+        if (size >= Eb)                 return floatForm((double)size / Eb) + " Eb";
+
+        return "???";
+    }
+
+
+    public static void deleteDirectoryFiles(SQLiteDatabase db, String directoryPath) {
+        File folder = new File(directoryPath);
+        File[] files = folder.listFiles();
+        long hourBefore = System.currentTimeMillis() - (1000 * 60 * 60);
+        for (int i = 0; i < files.length; i++) {
+            File file = files[i];
+            long lastModified = file.lastModified();
+            String path = file.getPath();
+            if (lastModified < hourBefore) {
+                FileDto fileDto = DbHelper.queryByPath(db, path);
+                if (fileDto != null && !Objects.equals(fileDto.occupy, FILE_OCCUPY)) {
+                    db.execSQL(DELETE_FILE_TABLE_SQL + " and path = '" + path + "'");
+                    db.execSQL("delete from " + FAIL_FILE_TABLE + " where 1 = 1 " + " and path = '" + path + "'");
+                    FileUtils.deleteTempFile(file, 1);
+                }
+            }
         }
     }
 
