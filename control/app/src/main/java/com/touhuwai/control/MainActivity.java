@@ -657,7 +657,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             FileUtils.checkSdFree(db);
-            mqttConnectHandler.postDelayed(this, 60000 * 1);
+            mqttConnectHandler.postDelayed(this, 60000 * 5);
         }
     };
 

@@ -267,7 +267,7 @@ public class FileUtils {
     public static void deleteDirectoryFiles(SQLiteDatabase db, String directoryPath) {
         File folder = new File(directoryPath);
         File[] files = folder.listFiles();
-        long hourBefore = System.currentTimeMillis() - (1000 * 60 * 60);
+        long hourBefore = System.currentTimeMillis() - (1000 * 60 * 30);
         for (int i = 0; i < files.length; i++) {
             File file = files[i];
             long lastModified = file.lastModified();
