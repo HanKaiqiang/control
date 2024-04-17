@@ -144,6 +144,10 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                                     Log.i(TAG, "creating a video frag");
                                     frag = VideoFragment.newInstance(item, HiAdvBox.this, progress);
                                     break;
+                                case 2://浏览器
+                                    Log.i(TAG, "creating a webView frag");
+                                    frag = webViewFragment.newInstance(item, HiAdvBox.this);
+                                    break;
                                 default:
                                     Log.w(TAG, "unexpected resType!");
                                     break;
@@ -183,8 +187,8 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                         ((VideoFragment) fragment).vv1.stopPlayback();
                     }
                 }
-                if (fragment instanceof ImageFragment) {
-                    ((ImageFragment) fragment).isStop = true;
+                if (fragment instanceof MyFragment) {
+                    ((MyFragment) fragment).isStop = true;
                 }
             }
             fragmentList.clear();
@@ -196,7 +200,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
 
 
     @Override
-    public void onPlayAdvItemResult(boolean isSucceed, String resourceId, int resourceType, int actualDuration, Date startTime, Date endTime, ImageFragment fragment) {
+    public void onPlayAdvItemResult(boolean isSucceed, String resourceId, int resourceType, int actualDuration, Date startTime, Date endTime, MyFragment fragment) {
         Log.i(TAG, "播放一条 item played. resourceType=" + resourceType
                 + ", actualDuration=" + actualDuration
                 + ", startTime=" + startTime

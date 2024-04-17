@@ -6,6 +6,7 @@ import static com.touhuwai.control.db.DbHelper.MQTT_TABLE;
 import static com.touhuwai.control.db.DbHelper.SELECT_DEFAULT_TABLE_SQL;
 import static com.touhuwai.control.db.DbHelper.SELECT_MQTT_TABLE_SQL;
 import static com.touhuwai.control.utils.FileUtils.TYPE_MAP;
+import static com.touhuwai.control.utils.FileUtils.TYPE_WEBVIEW;
 
 import android.Manifest;
 import android.content.ContentValues;
@@ -409,15 +410,21 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < playList.length(); i++) {
             JSONObject item = playList.getJSONObject(i);
             String fileUrl = item.getString("url");
-            FileDto fileDto = DbHelper.queryByUrl(db, fileUrl);
-            if (fileDto != null) {
-                fileCache.put(fileUrl, fileDto);
-                currentPlayIds.add(fileDto.id);
-                hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileDto.path));
+            String type = item.getString("type");
+            if (TYPE_WEBVIEW.equals(type)) {
+                fileCache.put(fileUrl, null);
+                hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileUrl));
             } else {
-                unDownPlayList.put(item);
+                FileDto fileDto = DbHelper.queryByUrl(db, fileUrl);
+                if (fileDto != null) {
+                    fileCache.put(fileUrl, fileDto);
+                    currentPlayIds.add(fileDto.id);
+                    hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileDto.path));
+                } else {
+                    unDownPlayList.put(item);
+                }
+                playListMap.put(fileUrl, item);
             }
-            playListMap.put(fileUrl, item);
         }
 
         fileDownUtils.stopDownloads(unDownPlayList); // 删除前一次正在进行的任务

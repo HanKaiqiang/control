@@ -16,7 +16,7 @@ public class HiAdvItem {
     //资源唯一id
     private String resourceId;
 
-    //0--picture,  1-video
+    //0--picture,  1-video,  2. webView
     private int resourceType;
 
     //time second

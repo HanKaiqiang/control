@@ -43,12 +43,14 @@ public class FileUtils {
     public static final String TYPE_VIDEO = "1";
     public static final String TYPE_IMAGE = "2";
     public static final String TYPE_GIF = "3";
+    public static final String TYPE_WEBVIEW = "4";
 
     public static final Map<String, Integer> TYPE_MAP = new HashMap<>();
     static {
         TYPE_MAP.put(TYPE_VIDEO, 1);
         TYPE_MAP.put(TYPE_IMAGE, 0);
         TYPE_MAP.put(TYPE_GIF, 0);
+        TYPE_MAP.put(TYPE_WEBVIEW, 2);
     }
 
     public final static int DEFAULT_DURATION  = 5; // 默认播放5S

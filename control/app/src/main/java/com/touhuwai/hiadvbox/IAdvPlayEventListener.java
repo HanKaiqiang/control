@@ -13,6 +13,6 @@ public interface IAdvPlayEventListener {
                                      int actualDuration,
                                      Date startTime,
                                      Date endTime,
-                                    ImageFragment fragment);
+                                    MyFragment fragment);
 
 }

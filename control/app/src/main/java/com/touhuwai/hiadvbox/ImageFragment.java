@@ -23,7 +23,7 @@ import java.util.Date;
 
 
 
-public class ImageFragment extends Fragment {
+public class ImageFragment extends MyFragment {
     private static final String TAG = ImageFragment.class.getSimpleName();
     private ProgressBar progressBar;
     ImageView iv_pic;
@@ -32,9 +32,6 @@ public class ImageFragment extends Fragment {
 
     HiAdvItem mAdvItem;
 
-    Date startTime;
-    Date endTime;
-    protected boolean isStop;
 
     public int progress = 0;
 
