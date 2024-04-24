@@ -146,7 +146,7 @@ public class HiAdvBox extends RelativeLayout implements IAdvPlayEventListener{
                                     break;
                                 case 2://浏览器
                                     Log.i(TAG, "creating a webView frag");
-                                    frag = webViewFragment.newInstance(item, HiAdvBox.this);
+                                    frag = WebViewFragment.newInstance(item, HiAdvBox.this);
                                     break;
                                 default:
                                     Log.w(TAG, "unexpected resType!");

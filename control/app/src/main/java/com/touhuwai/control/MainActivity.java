@@ -256,14 +256,16 @@ public class MainActivity extends AppCompatActivity {
             if (topic == null) {
                 topic = jsonObject.getString("topic");
             }
-             if (topic.startsWith(Topic.SHUTDOWN)) {
-                 FileUtils.deleteDirectoryFiles(db, fileDir);
+            if (topic.startsWith(Topic.SHUTDOWN)) {
+                FileUtils.deleteDirectoryFiles(db, fileDir);
                 BroadcastUtils.shutdown(this.getApplicationContext());
+            } else if (topic.startsWith(Topic.REBOOT)) {
+                BroadcastUtils.reboot(this.getApplicationContext());
             } else if (topic.startsWith(Topic.POWER_ON_ALARM)) {
-                 FileUtils.deleteDirectoryFiles(db, fileDir);
-                 String startAtTime = jsonObject.getString("startTime");
-                 BroadcastUtils.setPowerOnAlarm(Long.parseLong(startAtTime));
-                 BroadcastUtils.shutdown(this.getApplicationContext());
+                FileUtils.deleteDirectoryFiles(db, fileDir);
+                String startAtTime = jsonObject.getString("startTime");
+                BroadcastUtils.setPowerOnAlarm(Long.parseLong(startAtTime));
+                BroadcastUtils.shutdown(this.getApplicationContext());
             } else {
                 JSONArray playList = jsonObject.getJSONArray("playList");
                 boolean type = jsonObject.isNull("type");
@@ -336,15 +338,21 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < playList.length(); i++) {
             JSONObject item = playList.getJSONObject(i);
             String fileUrl = item.getString("url");
-            FileDto fileDto = DbHelper.queryDefaultByUrl(db, fileUrl);
-            if (fileDto != null) {
-                fileCache.put(fileUrl, fileDto);
-                playIds.add(fileDto.id);
-                hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileDto.path));
+            String type = item.getString("type");
+            if (TYPE_WEBVIEW.equals(type)) {
+                fileCache.put(fileUrl, null);
+                hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileUrl));
             } else {
-                unDownPlayList.put(item);
+                FileDto fileDto = DbHelper.queryDefaultByUrl(db, fileUrl);
+                if (fileDto != null) {
+                    fileCache.put(fileUrl, fileDto);
+                    playIds.add(fileDto.id);
+                    hiAdvItemMap.put(fileUrl, HiAdvItem.build(item, fileDto.path));
+                } else {
+                    unDownPlayList.put(item);
+                }
+                playListMap.put(fileUrl, item);
             }
-            playListMap.put(fileUrl, item);
         }
 
         fileDownUtils.stopDefaultDownloads(unDownPlayList);

@@ -23,18 +23,18 @@ import com.yanzhenjie.andserver.util.StringUtils;
 import java.util.Date;
 
 
-public class webViewFragment extends MyFragment {
-    private static final String TAG = webViewFragment.class.getSimpleName();
+public class WebViewFragment extends MyFragment {
+    private static final String TAG = WebViewFragment.class.getSimpleName();
     WebView webView;
     IAdvPlayEventListener mListener;
     HiAdvItem mAdvItem;
 
 
     public static synchronized Fragment newInstance(HiAdvItem advItem, IAdvPlayEventListener listener) {
-        return new webViewFragment(advItem, listener);
+        return new WebViewFragment(advItem, listener);
     }
 
-    public webViewFragment(HiAdvItem advItem, IAdvPlayEventListener listener) {
+    public WebViewFragment(HiAdvItem advItem, IAdvPlayEventListener listener) {
         mAdvItem = advItem;
         mListener = listener;
     }
@@ -75,10 +75,8 @@ public class webViewFragment extends MyFragment {
 
 //        在Android4.0以后，会发现，只要是写在主线程（就是Activity）中的HTTP请求，运行时都会报错，这是因为Android在4.0以后为了防止
 //        应用的ANR（Aplication Not Response）异常，Android这个设计是为了防止网络请求时间过长而导致界面假死的情况发生。
-        if (android.os.Build.VERSION.SDK_INT > 9) {
-            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-            StrictMode.setThreadPolicy(policy);
-        }
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
 
         webView.setVisibility(View.VISIBLE);
         //系统默认会通过手机浏览器打开网页；为了能够直接通过webview显示网页，则必须设置
@@ -119,9 +117,9 @@ public class webViewFragment extends MyFragment {
     public class MyThread implements Runnable {
         private int tDuration = 5;
 
-        private webViewFragment fragment;
+        private WebViewFragment fragment;
 
-        public MyThread(int duration, webViewFragment fragment) {
+        public MyThread(int duration, WebViewFragment fragment) {
             tDuration = duration;
             this.fragment = fragment;
         }
