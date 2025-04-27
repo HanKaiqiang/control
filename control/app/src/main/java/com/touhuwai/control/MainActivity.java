@@ -18,6 +18,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Button;
@@ -67,6 +68,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -91,6 +93,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Server mServer;
     private final FileDownUtils fileDownUtils = new FileDownUtils();
+
+    private TextToSpeech textToSpeech;
 
     private void requestPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED
@@ -122,6 +126,19 @@ public class MainActivity extends AppCompatActivity {
         showView(false);
         wifiRssi();
         mqttConnectHandler.postDelayed(checkSdFreeRunnable, 20000);
+
+        // 创建 TTS 实例
+        textToSpeech = new TextToSpeech(getApplicationContext(), status -> {
+                    if (status == TextToSpeech.SUCCESS) {
+                        // 初始化成功后，设置语言
+                        int result = textToSpeech.setLanguage(Locale.CHINESE);
+//                        if (result == TextToSpeech.LANG_MISSING_DATA ||
+//                                result == TextToSpeech.LANG_NOT_SUPPORTED) {
+//                            // 语言不支持的处理逻辑
+//                        }
+                    }
+                });
+
     }
 
     private int progress = 0;
@@ -248,6 +265,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void arrived (String topic, String payload) throws Exception {
+        Log.d(TAG, "topic：" + topic );
         if (!(payload == null || "".equals(payload))) {
             Log.d(TAG, payload);
             long currentTimeMillis = System.currentTimeMillis();
@@ -261,6 +279,11 @@ public class MainActivity extends AppCompatActivity {
                 BroadcastUtils.shutdown(this.getApplicationContext());
             } else if (topic.startsWith(Topic.REBOOT)) {
                 BroadcastUtils.reboot(this.getApplicationContext());
+            } else if (topic.startsWith(Topic.NOTIFICATION)) {
+                String title = jsonObject.getString("title");
+                String content = jsonObject.getString("content");
+//                Log.d(TAG, "notification：" + content );
+                textToSpeech.speak(content, TextToSpeech.QUEUE_FLUSH, null, null);
             } else if (topic.startsWith(Topic.POWER_ON_ALARM)) {
                 FileUtils.deleteDirectoryFiles(db, fileDir);
                 String startAtTime = jsonObject.getString("startTime");
@@ -576,6 +599,10 @@ public class MainActivity extends AppCompatActivity {
             mqttConnectHandler.removeCallbacks(checkSdFreeRunnable);
         } catch (MqttException e) {
             Log.e(TAG, e.getMessage(), e);
+        }
+        if (textToSpeech != null) {
+            textToSpeech.stop(); // 停止播放
+            textToSpeech.shutdown(); // 释放资源
         }
     }
 
